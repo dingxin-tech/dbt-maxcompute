@@ -1,11 +1,15 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
 import dbt.common.exceptions # noqa
-from dbt.adapters.base import Credentials
+from dbt.adapters.contracts.connection import Credentials
 
-from dbt.adapters.sql import SQLConnectionManager as connection_cls
-
+from dbt.adapters.sql import SQLConnectionManager
+from dbt.adapters.events.logging import AdapterLogger
 from dbt.logger import GLOBAL_LOGGER as logger
+
+logger = AdapterLogger("MaxCompute")
+
+MC_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
 
 @dataclass
 class MaxComputeCredentials(Credentials):
@@ -45,7 +49,7 @@ class MaxComputeCredentials(Credentials):
         """
         return ("host","port","username","user")
 
-class MaxComputeConnectionManager(connection_cls):
+class MaxComputeConnectionManager(SQLConnectionManager):
     TYPE = "maxcompute"
 
 
@@ -68,6 +72,7 @@ class MaxComputeConnectionManager(connection_cls):
         #     logger.debug("Rolling back transaction.")
         #     self.release(connection_name)
         #     raise dbt.exceptions.RuntimeException(str(exc))
+        logger.info("exception_handler: " + sql)
         pass
 
     @classmethod
@@ -94,6 +99,7 @@ class MaxComputeConnectionManager(connection_cls):
         #     connection.state = "open"
         #     connection.handle = handle
         # return connection
+        logger.info("open")
         pass
 
     @classmethod
@@ -106,6 +112,7 @@ class MaxComputeConnectionManager(connection_cls):
         """
         # ## Example ##
         # return cursor.status_message
+        logger.info("get_response")
         pass
 
     def cancel(self, connection):
@@ -119,4 +126,5 @@ class MaxComputeConnectionManager(connection_cls):
         # _, cursor = self.add_query(sql, "master")
         # res = cursor.fetchone()
         # logger.debug("Canceled query "{}": {}".format(connection_name, res))
+        logger.info("cancel")
         pass

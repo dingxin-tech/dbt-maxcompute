@@ -1,11 +1,9 @@
-
-from dbt.adapters.sql import SQLAdapter as adapter_cls
+from dbt.adapters.sql import SQLAdapter
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
 
 
-
-class MaxComputeAdapter(adapter_cls):
+class MaxComputeAdapter(SQLAdapter):
     """
     Controls actual implmentation of adapter, and ability to override certain methods.
     """
@@ -19,4 +17,4 @@ class MaxComputeAdapter(adapter_cls):
         """
         return "datenow()"
 
- # may require more build out to make more user friendly to confer with team and community.
+# may require more build out to make more user friendly to confer with team and community.
