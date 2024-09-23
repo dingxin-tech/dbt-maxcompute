@@ -4,6 +4,7 @@ from typing import FrozenSet, Optional, TypeVar
 from dbt.adapters.base.relation import BaseRelation, ComponentName, InformationSchema
 from dbt.adapters.contracts.relation import RelationType, Path, Policy
 from dbt_common.utils.dict import filter_null_values
+from odps.models import Table
 
 Self = TypeVar("Self", bound="MaxComputeRelation")
 
@@ -66,6 +67,21 @@ class MaxComputeRelation(BaseRelation):
 
     def information_schema(self, identifier: Optional[str] = None) -> "MaxComputeInformationSchema":
         return MaxComputeInformationSchema.from_relation(self, identifier)
+
+    @classmethod
+    def from_odps_table(cls, table: Table):
+        identifier = table.name
+        schema = table.get_schema()
+        schema = schema.name if schema else None
+
+        is_view = table.is_virtual_view or table.is_materialized_view
+
+        return cls.create(
+            database=table.project.name,
+            schema=schema,
+            identifier=identifier,
+            type=RelationType.View if is_view else RelationType.Table,
+        )
 
 
 @dataclass(frozen=True, eq=False, repr=False)

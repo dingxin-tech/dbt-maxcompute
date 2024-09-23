@@ -3,15 +3,25 @@ postgres adapter macros: https://github.com/dbt-labs/dbt-core/blob/main/plugins/
 dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
-{% macro maxcompute__alter_column_type(relation,column_name,new_column_type) -%}
-'''Changes column name or data type'''
+{% macro maxcompute__truncate_relation(relation) -%}
+'''Removes all rows from a targeted set of tables.'''
 /*
-    1. Create a new column (w/ temp name and correct type)
-    2. Copy data over to it
-    3. Drop the existing column (cascade!)
-    4. Rename the new column to existing column
+  1. grab all tables tied to the relation
+  2. remove rows from relations
 */
 {% endmacro %}
+
+
+
+{% macro maxcompute__alter_column_type(relation,column_name,new_column_type) -%}
+'''Changes column name or data type'''
+{% if relation.schema -%}
+    alter table {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} change {{ column_name }} {{ column_name }} {{ new_column_type }};
+{%- else -%}
+    alter table {{ relation.database }}.{{ relation.identifier }} change {{ column_name }} {{ column_name }} {{ new_column_type }};
+{%- endif -%}
+{% endmacro %}
+
 
 {% macro maxcompute__check_schema_exists(information_schema,schema) -%}
 '''Checks if schema name exists and returns number or times it shows up.'''
@@ -154,13 +164,7 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 {% endmacro %}
 
-{% macro maxcompute__truncate_relation(relation) -%}
-'''Removes all rows from a targeted set of tables.'''
-/*
-  1. grab all tables tied to the relation
-  2. remove rows from relations
-*/
-{% endmacro %}
+
 
 /*
 
