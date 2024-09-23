@@ -1,33 +1,30 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-import dbt.common.exceptions # noqa
-from dbt.adapters.contracts.connection import Credentials
+from dbt_common.exceptions import (
+    DbtConfigError,
+    DbtRuntimeError
+)
+from dbt.adapters.contracts.connection import Credentials, AdapterResponse
 
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
-from dbt.logger import GLOBAL_LOGGER as logger
+
+from odps import ODPS
+import odps.dbapi
 
 logger = AdapterLogger("MaxCompute")
 
-MC_QUERY_JOB_SPLIT = "-----Query Job SQL Follows-----"
-
 @dataclass
 class MaxComputeCredentials(Credentials):
-    """
-    Defines database specific credentials that get added to
-    profiles.yml to connect to new adapter
-    """
+    project: str
+    endpoint: str
+    accessId: str
+    accessKey: str
 
-    # Add credentials members here, like:
-    # host: str
-    # port: int
-    # username: str
-    # password: str
-
-    _ALIASES = {
-        "dbname":"database",
-        "pass":"password",
-        "user":"username"
+    ALIASES = {
+        'database': 'project',
+        'ak': 'accessId',
+        'sk': 'accessKey',
     }
 
     @property
@@ -37,94 +34,61 @@ class MaxComputeCredentials(Credentials):
 
     @property
     def unique_field(self):
-        """
-        Hashed and included in anonymous telemetry to track adapter adoption.
-        Pick a field that can uniquely identify one team/organization building with this adapter
-        """
-        return self.host
+        return self.endpoint + '_' + self.project
 
     def _connection_keys(self):
-        """
-        List of keys to display in the `dbt debug` output.
-        """
-        return ("host","port","username","user")
+        return ("project", "endpoint")
+
 
 class MaxComputeConnectionManager(SQLConnectionManager):
     TYPE = "maxcompute"
 
+    @classmethod
+    def open(cls, connection):
+        if connection.state == 'open':
+            logger.debug('Connection is already open, skipping open.')
+            return connection
+
+        credentials = connection.credentials
+
+        o = ODPS(
+            credentials.accessId,
+            credentials.accessKey,
+            project=credentials.project,
+            endpoint=credentials.endpoint,
+        )
+
+        try:
+            o.get_project().reload()
+        except Exception as e:
+            raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
+
+        handle = odps.dbapi.connect(o)
+        connection.state = 'open'
+        connection.handle = handle
+        return connection
+
+    @classmethod
+    def get_response(cls, cursor):
+        # FIXME：we should get 'code', 'message', 'rows_affected' from cursor
+        message = "OK"
+        return AdapterResponse(_message=message)
 
     @contextmanager
     def exception_handler(self, sql: str):
-        """
-        Returns a context manager, that will handle exceptions raised
-        from queries, catch, log, and raise dbt exceptions it knows how to handle.
-        """
-        # ## Example ##
-        # try:
-        #     yield
-        # except myadapter_library.DatabaseError as exc:
-        #     self.release(connection_name)
-
-        #     logger.debug("myadapter error: {}".format(str(e)))
-        #     raise dbt.exceptions.DatabaseException(str(exc))
-        # except Exception as exc:
-        #     logger.debug("Error running SQL: {}".format(sql))
-        #     logger.debug("Rolling back transaction.")
-        #     self.release(connection_name)
-        #     raise dbt.exceptions.RuntimeException(str(exc))
-        logger.info("exception_handler: " + sql)
-        pass
-
-    @classmethod
-    def open(cls, connection):
-        """
-        Receives a connection object and a Credentials object
-        and moves it to the "open" state.
-        """
-        # ## Example ##
-        # if connection.state == "open":
-        #     logger.debug("Connection is already open, skipping open.")
-        #     return connection
-
-        # credentials = connection.credentials
-
-        # try:
-        #     handle = myadapter_library.connect(
-        #         host=credentials.host,
-        #         port=credentials.port,
-        #         username=credentials.username,
-        #         password=credentials.password,
-        #         catalog=credentials.database
-        #     )
-        #     connection.state = "open"
-        #     connection.handle = handle
-        # return connection
-        logger.info("open")
-        pass
-
-    @classmethod
-    def get_response(cls,cursor):
-        """
-        Gets a cursor object and returns adapter-specific information
-        about the last executed command generally a AdapterResponse ojbect
-        that has items such as code, rows_affected,etc. can also just be a string ex. "OK"
-        if your cursor does not offer rich metadata.
-        """
-        # ## Example ##
-        # return cursor.status_message
-        logger.info("get_response")
-        pass
+        try:
+            yield
+        except Exception as exc:
+            logger.debug("Error while running:\n{}".format(sql))
+            logger.debug(exc)
+            if len(exc.args) == 0:
+                raise
+            thrift_resp = exc.args[0]
+            if hasattr(thrift_resp, "status"):
+                msg = thrift_resp.status.errorMessage
+                raise DbtRuntimeError(msg)
+            else:
+                raise DbtRuntimeError(str(exc))
 
     def cancel(self, connection):
-        """
-        Gets a connection object and attempts to cancel any ongoing queries.
-        """
-        # ## Example ##
-        # tid = connection.handle.transaction_id()
-        # sql = "select cancel_transaction({})".format(tid)
-        # logger.debug("Cancelling query "{}" ({})".format(connection_name, pid))
-        # _, cursor = self.add_query(sql, "master")
-        # res = cursor.fetchone()
-        # logger.debug("Canceled query "{}": {}".format(connection_name, res))
-        logger.info("cancel")
-        pass
+        connection.handle.cancel()
