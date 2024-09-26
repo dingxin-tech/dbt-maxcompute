@@ -1,5 +1,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
+from typing import Dict, Any
+
 from dbt_common.exceptions import (
     DbtConfigError,
     DbtRuntimeError
@@ -12,32 +14,32 @@ from dbt.adapters.events.logging import AdapterLogger
 from odps import ODPS
 import odps.dbapi
 
+from dbt.adapters.maxcompute.context import set_dbt_default_schema
+
 logger = AdapterLogger("MaxCompute")
 
 @dataclass
 class MaxComputeCredentials(Credentials):
-    project: str
     endpoint: str
     accessId: str
     accessKey: str
 
-    ALIASES = {
-        'database': 'project',
+    _ALIASES = {
+        'project': 'database',
         'ak': 'accessId',
         'sk': 'accessKey',
     }
 
     @property
     def type(self):
-        """Return name of adapter."""
         return "maxcompute"
 
     @property
     def unique_field(self):
-        return self.endpoint + '_' + self.project
+        return self.endpoint + '_' + self.database
 
     def _connection_keys(self):
-        return ("project", "endpoint")
+        return ("project", "database")
 
 
 class MaxComputeConnectionManager(SQLConnectionManager):
@@ -54,16 +56,18 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         o = ODPS(
             credentials.accessId,
             credentials.accessKey,
-            project=credentials.project,
+            project=credentials.database,
             endpoint=credentials.endpoint,
         )
+        o.schema = credentials.schema
+        set_dbt_default_schema(credentials.schema)
 
         try:
             o.get_project().reload()
         except Exception as e:
             raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
 
-        handle = odps.dbapi.connect(o)
+        handle = odps.dbapi.connect(odps=o, hints={'odps.sql.submit.mode': 'script'})
         connection.state = 'open'
         connection.handle = handle
         return connection
@@ -71,8 +75,12 @@ class MaxComputeConnectionManager(SQLConnectionManager):
     @classmethod
     def get_response(cls, cursor):
         # FIXME：we should get 'code', 'message', 'rows_affected' from cursor
-        message = "OK"
-        return AdapterResponse(_message=message)
+        logger.info("Current instance id is " + cursor._instance.id)
+        return AdapterResponse(_message="OK")
+
+    def set_query_header(self, query_header_context: Dict[str, Any]) -> None:
+        # no query header will better
+        pass
 
     @contextmanager
     def exception_handler(self, sql: str):
@@ -92,3 +100,9 @@ class MaxComputeConnectionManager(SQLConnectionManager):
 
     def cancel(self, connection):
         connection.handle.cancel()
+
+    def add_begin_query(self):
+        pass
+
+    def add_commit_query(self):
+        pass

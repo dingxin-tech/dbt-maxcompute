@@ -3,6 +3,8 @@ fixed:
 prompts:
   project:
     hint: "Enter your MaxCompute project name"
+  schema:
+    hint: "Enter your MaxCompute schema name"
   endpoint:
     hint: "Enter your MaxCompute endpoint URL"
   accessId:
