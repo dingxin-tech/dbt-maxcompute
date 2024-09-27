@@ -4,6 +4,7 @@ from functools import lru_cache
 from multiprocessing.context import SpawnContext
 from typing import Optional, List, Dict
 
+import agate
 from dbt.adapters.base import ConstraintSupport
 from dbt.adapters.capability import CapabilityDict, Capability, CapabilitySupport, Support
 from dbt.adapters.contracts.relation import RelationType
@@ -206,5 +207,25 @@ class MaxComputeAdapter(SQLAdapter):
     # MaxCompute does not support transactions
     def clear_transaction(self) -> None:
         pass
+
+    @classmethod
+    def convert_text_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        return "string"
+
+    @classmethod
+    def convert_number_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        return "decimal"
+
+    @classmethod
+    def convert_integer_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        return "bigint"
+
+    @classmethod
+    def convert_datetime_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        return "timestamp_ntz"
+
+    @classmethod
+    def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        return "timestamp_ntz"
 
     # TODO: standardize_grants_dict method may also be overridden

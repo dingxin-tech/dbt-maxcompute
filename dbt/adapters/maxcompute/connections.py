@@ -15,6 +15,7 @@ from odps import ODPS
 import odps.dbapi
 
 from dbt.adapters.maxcompute.context import set_dbt_default_schema
+from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
 
@@ -67,7 +68,7 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         except Exception as e:
             raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
 
-        handle = odps.dbapi.connect(odps=o, hints={'odps.sql.submit.mode': 'script'})
+        handle = ConnectionWrapper(odps=o, hints={'odps.sql.submit.mode': 'script'})
         connection.state = 'open'
         connection.handle = handle
         return connection
