@@ -68,7 +68,7 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         except Exception as e:
             raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
 
-        handle = ConnectionWrapper(odps=o, hints={'odps.sql.submit.mode': 'script'})
+        handle = ConnectionWrapper(odps=o, hints={'odps.sql.submit.mode': 'script', 'odps.sql.allow.cartesian':'true'})
         connection.state = 'open'
         connection.handle = handle
         return connection

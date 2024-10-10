@@ -1,7 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
 
+from dbt.adapters.events.logging import AdapterLogger
 from odps.dbapi import Cursor, Connection
+from odps.errors import ODPSError
 
 
 class ConnectionWrapper(Connection):
@@ -13,8 +15,11 @@ class ConnectionWrapper(Connection):
             hints=self._hints, **kwargs
         )
 
+logger = AdapterLogger("MaxCompute")
 
 class CursorWrapper(Cursor):
+
+
 
     def execute(self, operation, parameters=None, **kwargs):
         def replace_sql_placeholders(sql_template, values):
@@ -41,4 +46,18 @@ class CursorWrapper(Cursor):
 
         parameters = param_normalization(parameters)
         operation = replace_sql_placeholders(operation, parameters)
-        super().execute(operation)
+
+        # retry three times
+        for i in range(4):
+            try:
+                super().execute(operation)
+                self._instance.wait_for_success()
+                return
+            except ODPSError as e:
+                # 0130201: view not found, 0110061: table not found
+                if e.code == "ODPS-0130201" or e.code == "ODPS-0110061":
+                    logger.info("retry when execute sql: %s, error: %s", operation, e)
+                    continue
+                else:
+                    raise e
+

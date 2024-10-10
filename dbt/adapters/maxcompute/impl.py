@@ -2,15 +2,17 @@ import time
 from dataclasses import dataclass
 from functools import lru_cache
 from multiprocessing.context import SpawnContext
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 
 import agate
 from dbt.adapters.base import ConstraintSupport
 from dbt.adapters.capability import CapabilityDict, Capability, CapabilitySupport, Support
+from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
+from dbt_common.utils import AttrDict
 from odps.errors import ODPSError, NoSuchObject
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
@@ -95,7 +97,9 @@ class MaxComputeAdapter(SQLAdapter):
 
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
         # use macro to truncate
-        super().truncate_relation(relation)
+        sql = super().truncate_relation(relation)
+        logger.info(f"execute sql: {sql}")
+        self.get_odps_client().execute_sql(sql)
 
     def rename_relation(
             self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
@@ -111,6 +115,30 @@ class MaxComputeAdapter(SQLAdapter):
             if odps_table
             else []
         )
+
+    def execute_macro(
+            self,
+            macro_name: str,
+            macro_resolver: Optional[MacroResolverProtocol] = None,
+            project: Optional[str] = None,
+            context_override: Optional[Dict[str, Any]] = None,
+            kwargs: Optional[Dict[str, Any]] = None,
+            needs_conn: bool = False,
+    ) -> AttrDict:
+        sql = super().execute_macro(
+            macro_name,
+            macro_resolver=macro_resolver,
+            project=project,
+            context_override=context_override,
+            kwargs=kwargs,
+            needs_conn=needs_conn
+        )
+        inst = self.get_odps_client().run_sql(sql=sql)
+        logger.info(f"create instance id '{inst.id}', execute_sql: '{sql}'")
+        inst.wait_for_success()
+        return sql
+
+
 
     def create_schema(self, relation: MaxComputeRelation) -> None:
         logger.info(f"create_schema: '{relation.project}.{relation.schema}'")

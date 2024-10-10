@@ -4,7 +4,6 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
 {% macro maxcompute__truncate_relation(relation) -%}
-'''Removes all rows from table.'''
 {% if relation.schema -%}
     truncate table {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }};
 {%- else -%}
@@ -13,17 +12,23 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 {% endmacro %}
 
 {% macro maxcompute__rename_relation(from_relation, to_relation) -%}
-'''Renames a relation in the database.'''
 {% if from_relation.schema -%}
-    alter table {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }} rename to {{ to_relation.database }}.{{ to_relation.schema }}.{{ to_relation.identifier }};
+    {% if from_relation.is_view -%}
+        alter view {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
+    {%- else -%}
+        alter table {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
+    {%- endif -%}
 {%- else -%}
-    alter table {{ from_relation.database }}.{{ from_relation.identifier }} rename to {{ to_relation.database }}.{{ to_relation.identifier }}
+    {% if from_relation.is_view -%}
+        alter view {{ from_relation.database }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }}
+    {%- else -%}
+        alter table {{ from_relation.database }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
+    {%- endif -%}
 {%- endif -%}
 {% endmacro %}
 
 
 {% macro maxcompute__alter_column_type(relation,column_name,new_column_type) -%}
-'''Changes column name or data type'''
 {% if relation.schema -%}
     alter table {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} change {{ column_name }} {{ column_name }} {{ new_column_type }};
 {%- else -%}
