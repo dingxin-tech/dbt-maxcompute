@@ -4,7 +4,7 @@ from decimal import Decimal
 from dbt.adapters.events.logging import AdapterLogger
 from odps.dbapi import Cursor, Connection
 from odps.errors import ODPSError
-
+import re
 
 class ConnectionWrapper(Connection):
 
@@ -18,9 +18,6 @@ class ConnectionWrapper(Connection):
 logger = AdapterLogger("MaxCompute")
 
 class CursorWrapper(Cursor):
-
-
-
     def execute(self, operation, parameters=None, **kwargs):
         def replace_sql_placeholders(sql_template, values):
             if not values:
@@ -44,6 +41,13 @@ class CursorWrapper(Cursor):
                     normalized_params.append(f"{param}")
             return normalized_params
 
+        def remove_comments(input_string):
+            logger.debug(f"remove_comments: {input_string}")
+            # 使用正则表达式匹配 /* 开始和 */ 结束之间的内容，并将其替换为空字符串
+            result = re.sub(r'/\*[^+].*?\*/', '', input_string, flags=re.DOTALL)
+            return result
+
+        operation = remove_comments(operation)
         parameters = param_normalization(parameters)
         operation = replace_sql_placeholders(operation, parameters)
 

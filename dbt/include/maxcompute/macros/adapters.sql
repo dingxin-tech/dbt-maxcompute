@@ -41,28 +41,33 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
     {{ return(True) }}
 {% endmacro %}
 
-
+/* {# override dbt/include/global_project/macros/relations/table/create.sql #} */
 {% macro maxcompute__create_table_as(temporary, relation, sql) -%}
 {% if relation.schema -%}
-  create table if not exists {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as ({{ sql }})
+  create table if not exists {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as (
+      {{ sql }}
+  )
 {%- else -%}
-  create table if not exists {{ relation.database }}.default.{{ relation.identifier }} as ({{ sql }})
+  create table if not exists {{ relation.database }}.default.{{ relation.identifier }} as (
+      {{ sql }}
+  )
 {%- endif -%}
-{% if temporary -%}
+{% if temporary %}
     lifecyclie 1
 {%- endif -%}
 ;
 {%- endmacro %}
 
-{% macro maxcompute__create_view_as(temporary, relation, sql) -%}
+/* {# override dbt/include/global_project/macros/relations/view/create.sql #} */
+{% macro maxcompute__create_view_as(relation, sql) -%}
 {% if relation.schema -%}
-  create or replace view {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as ({{ sql }})
+  create or replace view {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as (
+         {{ sql }}
+         );
 {%- else -%}
-  create or replace view {{ relation.database }}.default.{{ relation.identifier }} as ({{ sql }})
+  create or replace view {{ relation.database }}.default.{{ relation.identifier }} as (
+         {{ sql }}
+         );
 {%- endif -%}
-{% if temporary -%}
-    lifecyclie 1
-{%- endif -%}
-;
 {%- endmacro %}
 

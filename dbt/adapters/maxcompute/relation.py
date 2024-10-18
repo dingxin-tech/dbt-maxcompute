@@ -71,7 +71,7 @@ class MaxComputeRelation(BaseRelation):
 
         return cls.create(
             database=table.project.name,
-            schema=table.get_schema().name,
+            schema=schema,
             identifier=identifier,
             type=RelationType.View if is_view else RelationType.Table,
         )
