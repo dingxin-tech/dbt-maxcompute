@@ -1,43 +1,79 @@
-v<p align="center">
-  <img src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg" alt="dbt logo" width="500"/>
+<p align="left">
+  <img src="icon_MaxCompute.svg" alt="MaxCompute logo" width="300" height="150" style="margin-right: 100px;"/>
+  <img src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg" alt="dbt logo" width="300" height="150"/>
 </p>
 
-**[dbt](https://www.getdbt.com/)** enables data analysts and engineers to transform their data using the same practices that software engineers use to build applications.
+# dbt-maxcompute
 
-dbt is the T in ELT. Organize, cleanse, denormalize, filter, rename, and pre-aggregate the raw data in your warehouse so that it's ready for analysis.
+Welcome to the **dbt-maxCompute** repository! This project aims to extend the capabilities of **dbt** (data build tool)
+for users of Alibaba MaxCompute, a cutting-edge data processing platform.
 
-## MaxCompute
-This repo contains the base code to help you start to build out your dbt-maxcompute adapter plugin, for more information on how to build out the adapter please follow the [docs](https://docs.getdbt.com/docs/contributing/building-a-new-adapter)
+## What is dbt?
 
-** Note ** this `README` is meant to be replaced with what information would be required to use your adpater once your at a point todo so.
+**[dbt](https://www.getdbt.com/)** empowers data analysts and engineers to transform their data using software
+engineering best practices. It serves as the **T** in the ELT (Extract, Load, Transform) process, allowing users to
+organize, cleanse, denormalize, filter, rename, and pre-aggregate raw data, making it analysis-ready.
 
-** Note **
-### Adapter Scaffold default Versioning
-This adapter plugin follows [semantic versioning](https://semver.org/). The first version of this plugin is v1.7.0, in order to be compatible with dbt Core v1.7.0.
+## About MaxCompute
 
-It's also brand new! For MaxCompute-specific functionality, we will aim for backwards-compatibility wherever possible. We are likely to be iterating more quickly than most major-version-1 software projects. To that end, backwards-incompatible changes will be clearly communicated and limited to minor versions (once every three months).
+MaxCompute is Alibaba Group's cloud data warehouse and big data processing platform, supporting massive data storage and
+computation, widely used for data analysis and business intelligence. With MaxCompute, users can efficiently manage and
+analyze large volumes of data and gain real-time business insights.
 
- ## Getting Started
+This repository contains the foundational code for the **dbt-maxcompute** adapter plugin. For guidance on developing the
+adapter, please refer to the [official documentation](https://docs.getdbt.com/docs/contributing/building-a-new-adapter).
 
- #### Setting up Locally
-- run `pip install -r dev-requirements.txt`.
-- cd directory into the `dbt-core` you'd like to be testing against and run `make dev`.
+### Important Note
 
- #### Connect to Github
-- run `git init`.
-- Connect your lcoal code to a Github repo.
+The `README` you are currently viewing will be updated with specific instructions and details on how to utilize the
+adapter as development progresses.
 
-## Join the dbt Community
+### Adapter Versioning
 
-- Be part of the conversation in the [dbt Community Slack](http://community.getdbt.com/)
-- If one doesn't exist feel free to request a #db-MaxCompute channel be made in the [#channel-requests](https://getdbt.slack.com/archives/C01D8J8AJDA) on dbt community slack channel.
-- Read more on the [dbt Community Discourse](https://discourse.getdbt.com)
+This adapter plugin follows [semantic versioning](https://semver.org/). The initial version is **v1.8.0-a1**, designed
+for compatibility with dbt Core v1.8.0. Since the plugin is in its early stages, the version number **a1** indicates
+that it is an Alpha 1 release. A stable version will be released in the future, focusing on MaxCompute-specific
+functionality and aiming for backwards compatibility.
 
-## Reporting bugs and contributing code
+## Getting Started
 
-- Want to report a bug or request a feature? Let us know on [Slack](http://community.getdbt.com/), or open [an issue](https://github.com/dbt-labs/dbt-redshift/issues/new)
-- Want to help us build dbt? Check out the [Contributing Guide](https://github.com/dbt-labs/dbt/blob/HEAD/CONTRIBUTING.md)
+### For Users
+
+To install the plugin, run the following command:
+
+```bash
+pip install dbt-maxcompute==1.8.0a1
+```
+
+You will also need to configure your dbt profile with the following settings:
+
+```json
+{
+  "type": "maxcompute",
+  "project": "<your_project>",
+  "endpoint": "<your_endpoint>",
+  "accessId": "<your_access_id>",
+  "accessKey": "<your_access_key>",
+  "schema": "<your_namespace_schema>"
+}
+```
+
+### For Developers
+
+If you want to contribute or develop the adapter, use the following command to set up your environment:
+
+```bash
+pip install -r dev-requirements.txt
+```
+
+## Reporting Bugs and Contributing
+
+Your feedback helps improve the project:
+
+- To report bugs or request features, please open a
+  new [issue](https://github.com/aliyun/dbt-maxcompute/issues/new) on GitHub.
 
 ## Code of Conduct
 
-Everyone interacting in the dbt project's codebases, issue trackers, chat rooms, and mailing lists is expected to follow the [dbt Code of Conduct](https://community.getdbt.com/code-of-conduct).
+We are committed to fostering a welcoming and inclusive environment. All community members are expected to adhere to
+the [dbt Code of Conduct](https://community.getdbt.com/code-of-conduct).
