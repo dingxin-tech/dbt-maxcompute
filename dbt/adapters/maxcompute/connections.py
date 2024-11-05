@@ -76,7 +76,7 @@ class MaxComputeConnectionManager(SQLConnectionManager):
     @classmethod
     def get_response(cls, cursor):
         # FIXME：we should get 'code', 'message', 'rows_affected' from cursor
-        logger.info("Current instance id is " + cursor._instance.id)
+        logger.debug("Current instance id is " + cursor._instance.id)
         return AdapterResponse(_message="OK")
 
     def set_query_header(self, query_header_context: Dict[str, Any]) -> None:

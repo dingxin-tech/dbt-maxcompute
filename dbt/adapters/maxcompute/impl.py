@@ -98,7 +98,7 @@ class MaxComputeAdapter(SQLAdapter):
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
         # use macro to truncate
         sql = super().truncate_relation(relation)
-        logger.info(f"execute sql: {sql}")
+        logger.debug(f"execute sql: {sql}")
         self.get_odps_client().execute_sql(sql)
 
     def rename_relation(
@@ -108,7 +108,7 @@ class MaxComputeAdapter(SQLAdapter):
         super().rename_relation(from_relation, to_relation)
 
     def get_columns_in_relation(self, relation: MaxComputeRelation):
-        logger.info(f"get_columns_in_relation: {relation.render()}")
+        logger.debug(f"get_columns_in_relation: {relation.render()}")
         odps_table = self.get_odps_table_by_relation(relation)
         return (
             [MaxComputeColumn.from_odps_column(column) for column in odps_table.table_schema.simple_columns]
@@ -134,14 +134,14 @@ class MaxComputeAdapter(SQLAdapter):
             needs_conn=needs_conn
         )
         inst = self.get_odps_client().run_sql(sql=sql)
-        logger.info(f"create instance id '{inst.id}', execute_sql: '{sql}'")
+        logger.debug(f"create instance id '{inst.id}', execute_sql: '{sql}'")
         inst.wait_for_success()
         return sql
 
 
 
     def create_schema(self, relation: MaxComputeRelation) -> None:
-        logger.info(f"create_schema: '{relation.project}.{relation.schema}'")
+        logger.debug(f"create_schema: '{relation.project}.{relation.schema}'")
 
         # Although the odps client has a check schema exist method, it will have a considerable delay,
         # so that it is impossible to judge how many seconds it should wait.
@@ -157,7 +157,7 @@ class MaxComputeAdapter(SQLAdapter):
         # self.checkSchemaDeeply(relation.schema, relation.database, True)
 
     def drop_schema(self, relation: MaxComputeRelation) -> None:
-        logger.info(f"drop_schema: '{relation.project}.{relation.schema}'")
+        logger.debug(f"drop_schema: '{relation.project}.{relation.schema}'")
 
         # Although the odps client has a check schema exist method, it will have a considerable delay,
         # so that it is impossible to judge how many seconds it should wait.
@@ -173,21 +173,21 @@ class MaxComputeAdapter(SQLAdapter):
         # self.checkSchemaDeeply(relation.schema, relation.database, False)
 
     def checkSchemaDeeply(self, schema, project, expect_exist):
-        logger.info(f"checkSchemaDeeply: {project}.{schema}, expect schema exist: {expect_exist}")
+        logger.debug(f"checkSchemaDeeply: {project}.{schema}, expect schema exist: {expect_exist}")
         for retry in range(0, 5):
             try:
                 self.get_odps_client().execute_sql(
                     f"create or replace view {project}.{schema}.__check_schema_exist__ as select 1;")
                 if not expect_exist:
                     return
-                logger.info(f"{project}.{schema} still exist, continue to wait.")
+                logger.debug(f"{project}.{schema} still exist, continue to wait.")
                 self.get_odps_client().execute_sql(
                     f"drop view {project}.{schema}.__check_schema_exist__;")
             except ODPSError as e:
                 if e.code == "ODPS-0110061":
                     if expect_exist:
                         return
-                    logger.info(f"{project}.{schema} not exist, continue to wait.")
+                    logger.debug(f"{project}.{schema} not exist, continue to wait.")
                 else:
                     raise e
             time.sleep(5)
@@ -196,7 +196,7 @@ class MaxComputeAdapter(SQLAdapter):
             self,
             schema_relation: MaxComputeRelation,
     ) -> List[MaxComputeRelation]:
-        logger.info(f"list_relations_without_caching: {schema_relation}")
+        logger.debug(f"list_relations_without_caching: {schema_relation}")
         if not self.check_schema_exists(schema_relation.database, schema_relation.schema):
             return []
         results = self.get_odps_client().list_tables(project=schema_relation.database,
@@ -219,7 +219,7 @@ class MaxComputeAdapter(SQLAdapter):
             return ["default"]
         res = [schema.name for schema in self.get_odps_client().list_schemas(database)]
 
-        logger.info(f"list_schemas: {res}")
+        logger.debug(f"list_schemas: {res}")
         return res
 
     def check_schema_exists(self, database: str, schema: str) -> bool:
@@ -229,7 +229,7 @@ class MaxComputeAdapter(SQLAdapter):
         schema = schema.strip('`')
         time.sleep(10)
         schema_exist = self.get_odps_client().exist_schema(schema, database)
-        logger.info(f"check_schema_exists: {database}.{schema}, answer is {schema_exist}")
+        logger.debug(f"check_schema_exists: {database}.{schema}, answer is {schema_exist}")
         return schema_exist
 
     # MaxCompute does not support transactions

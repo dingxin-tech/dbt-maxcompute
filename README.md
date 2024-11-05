@@ -30,35 +30,62 @@ adapter as development progresses.
 
 ### Adapter Versioning
 
-This adapter plugin follows [semantic versioning](https://semver.org/). The initial version is **v1.8.0-a1**, designed
-for compatibility with dbt Core v1.8.0. Since the plugin is in its early stages, the version number **a1** indicates
-that it is an Alpha 1 release. A stable version will be released in the future, focusing on MaxCompute-specific
+This adapter plugin follows [semantic versioning](https://semver.org/). The initial version is **v1.8.0-a2**, designed
+for compatibility with dbt Core v1.8.0. Since the plugin is in its early stages, the version number **a2** indicates
+that it is an Alpha 2 release. A stable version will be released in the future, focusing on MaxCompute-specific
 functionality and aiming for backwards compatibility.
 
 ## Getting Started
 
-### For Users
-
-To install the plugin, run the following command:
+### Install the plugin
 
 ```bash
-pip install dbt-maxcompute==1.8.0a1
+# we use python 3.8 for this example
+conda create --name dbt-maxcompute-example python=3.8
+conda activate dbt-maxcompute-example
+
+pip install dbt-core
+pip install dbt-maxcompute
 ```
 
-You will also need to configure your dbt profile with the following settings:
+### Configure dbt profile:
 
-```json
-{
-  "type": "maxcompute",
-  "project": "<your_project>",
-  "endpoint": "<your_endpoint>",
-  "accessId": "<your_access_id>",
-  "accessKey": "<your_access_key>",
-  "schema": "<your_namespace_schema>"
-}
+1. Create a file in the ~/.dbt/ directory named profiles.yml.
+2. Copy the following and paste into the new profiles.yml file. Make sure you update the values where noted.
+
+```yaml
+jaffle_shop: # this needs to match the profile in your dbt_project.yml file
+  target: dev
+  outputs:
+    dev:
+      type: maxcompute
+      project: dbt-example # Replace this with your project name
+      schema: default # Replace this with schema name, e.g. dbt_bilbo
+      endpoint: http://service.cn-shanghai.maxcompute.aliyun.com/api # Replace this with your maxcompute endpoint
+      accessId: XXX # Replace this with your accessId(ak)
+      accessKey: XXX # Replace this with your accessKey(sk)
 ```
 
-### For Developers
+Currently we support the following parameters：
+
+| **Field**   | **Description**                                                                                    | **Default Value**       |
+|-------------|----------------------------------------------------------------------------------------------------|-------------------------|
+| `type`      | Specifies the type of database connection; must be set to "maxcompute" for MaxCompute connections. | `"maxcompute"`          |
+| `project`   | The name of your MaxCompute project.                                                               | N/A (Must be specified) |
+| `endpoint`  | The endpoint URL for connecting to MaxCompute.                                                     | N/A (Must be specified) |
+| `accessId`  | The Access ID for authentication with MaxCompute.                                                  | N/A (Must be specified) |
+| `accessKey` | The Access Key for authentication with MaxCompute.                                                 | N/A (Must be specified) |
+| `schema`    | The namespace schema that the models will use in MaxCompute.                                       | N/A (Must be specified) |
+
+**Notes**: The fields marked as "N/A (Must be specified)" indicate that these values are required and do not have
+default values.
+
+### Run you dbt models
+
+If you are new to DBT, we have prepared a [Tutorial document](docs/Tutorial.md) for your reference. Of course, you can also access the
+official documentation provided by DBT (but some additional adaptations may be required for MaxCompute)
+
+## Developers Guide
 
 If you want to contribute or develop the adapter, use the following command to set up your environment:
 

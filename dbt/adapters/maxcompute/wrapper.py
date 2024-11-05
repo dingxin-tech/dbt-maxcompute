@@ -60,7 +60,7 @@ class CursorWrapper(Cursor):
             except ODPSError as e:
                 # 0130201: view not found, 0110061, 0130131: table not found
                 if e.code == "ODPS-0130201" or e.code == "ODPS-0110061" or e.code == "ODPS-0130131":
-                    logger.info("retry when execute sql: %s, error: %s", operation, e)
+                    logger.debug("retry when execute sql: %s, error: %s", operation, e)
                     continue
                 else:
                     raise e
