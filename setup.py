@@ -12,7 +12,9 @@ try:
 except ImportError:
     # the user has a downlevel version of setuptools.
     print("Error: dbt requires setuptools v40.1.0 or higher.")
-    print('Please upgrade setuptools with "pip install --upgrade setuptools" and try again')
+    print(
+        'Please upgrade setuptools with "pip install --upgrade setuptools" and try again'
+    )
     sys.exit(1)
 
 from pathlib import Path
@@ -52,7 +54,7 @@ setup(
     install_requires=[
         "dbt-common>=1.0.4,<2.0",
         "dbt-adapters>=1.1.1,<2.0",
-        "pyodps", # latest
+        "pyodps",  # latest
         # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
         "dbt-core>=1.8.0",
     ],

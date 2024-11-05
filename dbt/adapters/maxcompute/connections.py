@@ -2,10 +2,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Dict, Any
 
-from dbt_common.exceptions import (
-    DbtConfigError,
-    DbtRuntimeError
-)
+from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
 from dbt.adapters.contracts.connection import Credentials, AdapterResponse
 
 from dbt.adapters.sql import SQLConnectionManager
@@ -19,6 +16,7 @@ from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
 
+
 @dataclass
 class MaxComputeCredentials(Credentials):
     endpoint: str
@@ -26,9 +24,9 @@ class MaxComputeCredentials(Credentials):
     accessKey: str
 
     _ALIASES = {
-        'project': 'database',
-        'ak': 'accessId',
-        'sk': 'accessKey',
+        "project": "database",
+        "ak": "accessId",
+        "sk": "accessKey",
     }
 
     @property
@@ -37,7 +35,7 @@ class MaxComputeCredentials(Credentials):
 
     @property
     def unique_field(self):
-        return self.endpoint + '_' + self.database
+        return self.endpoint + "_" + self.database
 
     def _connection_keys(self):
         return ("project", "database")
@@ -48,8 +46,8 @@ class MaxComputeConnectionManager(SQLConnectionManager):
 
     @classmethod
     def open(cls, connection):
-        if connection.state == 'open':
-            logger.debug('Connection is already open, skipping open.')
+        if connection.state == "open":
+            logger.debug("Connection is already open, skipping open.")
             return connection
 
         credentials = connection.credentials
@@ -68,8 +66,14 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         except Exception as e:
             raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
 
-        handle = ConnectionWrapper(odps=o, hints={'odps.sql.submit.mode': 'script', 'odps.sql.allow.cartesian':'true'})
-        connection.state = 'open'
+        handle = ConnectionWrapper(
+            odps=o,
+            hints={
+                "odps.sql.submit.mode": "script",
+                "odps.sql.allow.cartesian": "true",
+            },
+        )
+        connection.state = "open"
         connection.handle = handle
         return connection
 

@@ -2,7 +2,9 @@ import time
 import functools
 
 
-def retry_on_exception(max_retries=3, delay=1, backoff=2, exceptions=(Exception,), condition=None):
+def retry_on_exception(
+    max_retries=3, delay=1, backoff=2, exceptions=(Exception,), condition=None
+):
     """
     Decorator for retrying a function if it throws an exception.
 
@@ -33,4 +35,3 @@ def retry_on_exception(max_retries=3, delay=1, backoff=2, exceptions=(Exception,
         return wrapper_retry
 
     return decorator_retry
-

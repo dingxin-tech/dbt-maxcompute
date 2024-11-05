@@ -29,7 +29,6 @@ class MaxComputeRelation(BaseRelation):
 
     include_policy: Policy = field(default_factory=lambda: OdpsIncludePolicy())
 
-
     renameable_relations: FrozenSet[RelationType] = field(
         default_factory=lambda: frozenset(
             {
@@ -58,7 +57,9 @@ class MaxComputeRelation(BaseRelation):
     def project(self):
         return self.database
 
-    def information_schema(self, identifier: Optional[str] = None) -> "MaxComputeInformationSchema":
+    def information_schema(
+        self, identifier: Optional[str] = None
+    ) -> "MaxComputeInformationSchema":
         return MaxComputeInformationSchema.from_relation(self, identifier)
 
     @classmethod
@@ -90,7 +91,9 @@ class MaxComputeInformationSchema(InformationSchema):
     quote_character: str = "`"
 
     @classmethod
-    def get_path(cls, relation: BaseRelation, information_schema_view: Optional[str]) -> Path:
+    def get_path(
+        cls, relation: BaseRelation, information_schema_view: Optional[str]
+    ) -> Path:
         return Path(
             database="SYSTEM_CATALOG",
             schema="INFORMATION_SCHEMA",
@@ -100,19 +103,15 @@ class MaxComputeInformationSchema(InformationSchema):
     @classmethod
     def get_include_policy(cls, relation, information_schema_view):
         return relation.include_policy.replace(
-            database=True,
-            schema=True,
-            identifier=True
+            database=True, schema=True, identifier=True
         )
 
     @classmethod
     def get_quote_policy(
-            cls,
-            relation,
-            information_schema_view: Optional[str],
+        cls,
+        relation,
+        information_schema_view: Optional[str],
     ) -> Policy:
         return relation.quote_policy.replace(
-            database=False,
-            schema=False,
-            identifier=False
+            database=False, schema=False, identifier=False
         )

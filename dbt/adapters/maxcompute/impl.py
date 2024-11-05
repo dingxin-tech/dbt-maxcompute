@@ -6,7 +6,12 @@ from typing import Optional, List, Dict, Any
 
 import agate
 from dbt.adapters.base import ConstraintSupport
-from dbt.adapters.capability import CapabilityDict, Capability, CapabilitySupport, Support
+from dbt.adapters.capability import (
+    CapabilityDict,
+    Capability,
+    CapabilitySupport,
+    Support,
+)
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.protocol import AdapterConfig
@@ -54,8 +59,12 @@ class MaxComputeAdapter(SQLAdapter):
 
     _capabilities: CapabilityDict = CapabilityDict(
         {
-            Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full),
-            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
+            Capability.TableLastModifiedMetadata: CapabilitySupport(
+                support=Support.Full
+            ),
+            Capability.SchemaMetadataByRelations: CapabilitySupport(
+                support=Support.Full
+            ),
         }
     )
 
@@ -68,14 +77,22 @@ class MaxComputeAdapter(SQLAdapter):
         return conn.handle.odps
 
     def get_odps_table_by_relation(self, relation: MaxComputeRelation):
-        if self.get_odps_client().exist_table(relation.identifier, relation.project, relation.schema):
-            return self.get_odps_client().get_table(relation.identifier, relation.project, relation.schema)
+        if self.get_odps_client().exist_table(
+            relation.identifier, relation.project, relation.schema
+        ):
+            return self.get_odps_client().get_table(
+                relation.identifier, relation.project, relation.schema
+            )
         return None
 
     @lru_cache(maxsize=100)  # Cache results with no limit on size
     def support_namespace_schema(self, project: str):
-        return self.get_odps_client().get_project(project).get_property("odps.schema.model.enabled",
-                                                                        "false") == "true"
+        return (
+            self.get_odps_client()
+            .get_project(project)
+            .get_property("odps.schema.model.enabled", "false")
+            == "true"
+        )
 
     ###
     # Implementations of abstract methods
@@ -93,7 +110,9 @@ class MaxComputeAdapter(SQLAdapter):
         if is_cached:
             self.cache_dropped(relation)
         conn = self.connections.get_thread_connection()
-        conn.handle.odps.delete_table(relation.identifier, relation.project, True, relation.schema)
+        conn.handle.odps.delete_table(
+            relation.identifier, relation.project, True, relation.schema
+        )
 
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
         # use macro to truncate
@@ -102,7 +121,7 @@ class MaxComputeAdapter(SQLAdapter):
         self.get_odps_client().execute_sql(sql)
 
     def rename_relation(
-            self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
+        self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
     ) -> None:
         # use macro to rename
         super().rename_relation(from_relation, to_relation)
@@ -111,19 +130,22 @@ class MaxComputeAdapter(SQLAdapter):
         logger.debug(f"get_columns_in_relation: {relation.render()}")
         odps_table = self.get_odps_table_by_relation(relation)
         return (
-            [MaxComputeColumn.from_odps_column(column) for column in odps_table.table_schema.simple_columns]
+            [
+                MaxComputeColumn.from_odps_column(column)
+                for column in odps_table.table_schema.simple_columns
+            ]
             if odps_table
             else []
         )
 
     def execute_macro(
-            self,
-            macro_name: str,
-            macro_resolver: Optional[MacroResolverProtocol] = None,
-            project: Optional[str] = None,
-            context_override: Optional[Dict[str, Any]] = None,
-            kwargs: Optional[Dict[str, Any]] = None,
-            needs_conn: bool = False,
+        self,
+        macro_name: str,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+        project: Optional[str] = None,
+        context_override: Optional[Dict[str, Any]] = None,
+        kwargs: Optional[Dict[str, Any]] = None,
+        needs_conn: bool = False,
     ) -> AttrDict:
         sql = super().execute_macro(
             macro_name,
@@ -131,14 +153,12 @@ class MaxComputeAdapter(SQLAdapter):
             project=project,
             context_override=context_override,
             kwargs=kwargs,
-            needs_conn=needs_conn
+            needs_conn=needs_conn,
         )
         inst = self.get_odps_client().run_sql(sql=sql)
         logger.debug(f"create instance id '{inst.id}', execute_sql: '{sql}'")
         inst.wait_for_success()
         return sql
-
-
 
     def create_schema(self, relation: MaxComputeRelation) -> None:
         logger.debug(f"create_schema: '{relation.project}.{relation.schema}'")
@@ -173,16 +193,20 @@ class MaxComputeAdapter(SQLAdapter):
         # self.checkSchemaDeeply(relation.schema, relation.database, False)
 
     def checkSchemaDeeply(self, schema, project, expect_exist):
-        logger.debug(f"checkSchemaDeeply: {project}.{schema}, expect schema exist: {expect_exist}")
+        logger.debug(
+            f"checkSchemaDeeply: {project}.{schema}, expect schema exist: {expect_exist}"
+        )
         for retry in range(0, 5):
             try:
                 self.get_odps_client().execute_sql(
-                    f"create or replace view {project}.{schema}.__check_schema_exist__ as select 1;")
+                    f"create or replace view {project}.{schema}.__check_schema_exist__ as select 1;"
+                )
                 if not expect_exist:
                     return
                 logger.debug(f"{project}.{schema} still exist, continue to wait.")
                 self.get_odps_client().execute_sql(
-                    f"drop view {project}.{schema}.__check_schema_exist__;")
+                    f"drop view {project}.{schema}.__check_schema_exist__;"
+                )
             except ODPSError as e:
                 if e.code == "ODPS-0110061":
                     if expect_exist:
@@ -193,28 +217,29 @@ class MaxComputeAdapter(SQLAdapter):
             time.sleep(5)
 
     def list_relations_without_caching(
-            self,
-            schema_relation: MaxComputeRelation,
+        self,
+        schema_relation: MaxComputeRelation,
     ) -> List[MaxComputeRelation]:
         logger.debug(f"list_relations_without_caching: {schema_relation}")
-        if not self.check_schema_exists(schema_relation.database, schema_relation.schema):
+        if not self.check_schema_exists(
+            schema_relation.database, schema_relation.schema
+        ):
             return []
-        results = self.get_odps_client().list_tables(project=schema_relation.database,
-                                                     schema=schema_relation.schema)
+        results = self.get_odps_client().list_tables(
+            project=schema_relation.database, schema=schema_relation.schema
+        )
         relations = []
         for table in results:
-            relations.append(
-                MaxComputeRelation.from_odps_table(table)
-            )
+            relations.append(MaxComputeRelation.from_odps_table(table))
         return relations
 
     @classmethod
     def quote(cls, identifier):
-        return '`{}`'.format(identifier)
+        return "`{}`".format(identifier)
 
     def list_schemas(self, database: str) -> List[str]:
-        database = database.split('.')[0]
-        database = database.strip('`')
+        database = database.split(".")[0]
+        database = database.strip("`")
         if not self.support_namespace_schema(database):
             return ["default"]
         res = [schema.name for schema in self.get_odps_client().list_schemas(database)]
@@ -223,13 +248,15 @@ class MaxComputeAdapter(SQLAdapter):
         return res
 
     def check_schema_exists(self, database: str, schema: str) -> bool:
-        database = database.strip('`')
+        database = database.strip("`")
         if not self.support_namespace_schema(database):
             return False
-        schema = schema.strip('`')
+        schema = schema.strip("`")
         time.sleep(10)
         schema_exist = self.get_odps_client().exist_schema(schema, database)
-        logger.debug(f"check_schema_exists: {database}.{schema}, answer is {schema_exist}")
+        logger.debug(
+            f"check_schema_exists: {database}.{schema}, answer is {schema_exist}"
+        )
         return schema_exist
 
     # MaxCompute does not support transactions
