@@ -20,11 +20,11 @@ from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
 from dbt_common.utils import AttrDict
-from odps.errors import ODPSError, NoSuchObject
+from odps.errors import ODPSError
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
 from dbt.adapters.maxcompute.column import MaxComputeColumn
-from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
+from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS, get_dbt_default_schema
 from dbt.adapters.maxcompute.relation import MaxComputeRelation
 from dbt.adapters.events.logging import AdapterLogger
 
@@ -266,47 +266,15 @@ class MaxComputeAdapter(SQLAdapter):
             schemas: Set[str],
             used_schemas: FrozenSet[Tuple[str, str]],
     ) -> "agate.Table":
-        sql_column_names = [
-            "table_database", "table_schema", "table_name", "table_type",
-            "table_comment", "column_name", "column_type",
-            "column_comment", "table_owner"
-        ]
-        sql_rows = []
-
+        relations = []
         for schema in schemas:
             results = self.get_odps_client().list_tables(
                 schema=schema
             )
             for odps_table in results:
-                table_database = self.get_odps_client().project
-                table_schema = schema
-                table_name = odps_table.name
-                if odps_table or odps_table.is_materialized_view:
-                    table_type = "view"
-                else:
-                    table_type = "table"
-                table_comment = odps_table.comment
-                table_owner = odps_table.owner
-                for column in odps_table.table_schema.simple_columns:
-                    column_name = column.name
-                    column_type = column.type.name
-                    column_comment = column.comment
-                    sql_rows.append(
-                        (
-                            table_database,
-                            table_schema,
-                            table_name,
-                            table_type,
-                            table_comment,
-                            column_name,
-                            column_type,
-                            column_comment,
-                            table_owner,
-                        )
-                    )
-        table_instance = Table(sql_rows, column_names=sql_column_names)
-        results = self._catalog_filter_table(table_instance, used_schemas)
-        return results
+                relation = MaxComputeRelation.from_odps_table(odps_table)
+                relations.append(relation)
+        return self._get_one_catalog_by_relations(information_schema, relations, used_schemas)
 
     def _get_one_catalog_by_relations(
             self,
@@ -316,9 +284,10 @@ class MaxComputeAdapter(SQLAdapter):
     ) -> "agate.Table":
         sql_column_names = [
             "table_database", "table_schema", "table_name", "table_type",
-            "table_comment", "column_name", "column_type",
+            "table_comment", "column_name", "column_type", "column_index",
             "column_comment", "table_owner"
         ]
+
         sql_rows = []
 
         for relation in relations:
@@ -331,12 +300,13 @@ class MaxComputeAdapter(SQLAdapter):
                 table_type = "view"
             else:
                 table_type = "table"
-            table_comment = odps_table.comment
+            table_comment = "'" + odps_table.comment + "'"
             table_owner = odps_table.owner
+            column_index = 0
             for column in odps_table.table_schema.simple_columns:
                 column_name = column.name
                 column_type = column.type.name
-                column_comment = column.comment
+                column_comment = "'" + column.comment + "'"
                 sql_rows.append(
                     (
                         table_database,
@@ -346,11 +316,23 @@ class MaxComputeAdapter(SQLAdapter):
                         table_comment,
                         column_name,
                         column_type,
+                        column_index,
                         column_comment,
                         table_owner,
                     )
                 )
+                column_index += 1
+
         table_instance = Table(sql_rows, column_names=sql_column_names)
+
+        # Treat an empty schema as default schema
+        new_schema = (self.get_odps_client().project, get_dbt_default_schema())
+        default_schema = (self.get_odps_client().project, "")
+        if default_schema in used_schemas:
+            new_used_schemas = set(used_schemas)
+            new_used_schemas.add(new_schema)
+            used_schemas = frozenset(new_used_schemas)
+
         results = self._catalog_filter_table(table_instance, used_schemas)  # type: ignore[arg-type]
         return results
 

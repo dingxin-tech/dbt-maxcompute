@@ -16,6 +16,3 @@ def dbt_profile_target(filepath='/Users/dingxin/pythonProject/dbt-maxcompute/dbt
         config = yaml.safe_load(file)
     return config
 
-
-def unique_schema(request, prefix) -> str:
-    return "avoid_schema_undefined_" + prefix
