@@ -2,10 +2,12 @@ import time
 from dataclasses import dataclass
 from functools import lru_cache
 from multiprocessing.context import SpawnContext
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple
 
 import agate
+from agate import Table
 from dbt.adapters.base import ConstraintSupport
+from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.capability import (
     CapabilityDict,
     Capability,
@@ -22,10 +24,9 @@ from odps.errors import ODPSError, NoSuchObject
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
 from dbt.adapters.maxcompute.column import MaxComputeColumn
+from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 from dbt.adapters.maxcompute.relation import MaxComputeRelation
 from dbt.adapters.events.logging import AdapterLogger
-
-from dbt.adapters.maxcompute.utils import retry_on_exception
 
 logger = AdapterLogger("MaxCompute")
 
@@ -78,7 +79,7 @@ class MaxComputeAdapter(SQLAdapter):
 
     def get_odps_table_by_relation(self, relation: MaxComputeRelation):
         if self.get_odps_client().exist_table(
-            relation.identifier, relation.project, relation.schema
+                relation.identifier, relation.project, relation.schema
         ):
             return self.get_odps_client().get_table(
                 relation.identifier, relation.project, relation.schema
@@ -88,10 +89,10 @@ class MaxComputeAdapter(SQLAdapter):
     @lru_cache(maxsize=100)  # Cache results with no limit on size
     def support_namespace_schema(self, project: str):
         return (
-            self.get_odps_client()
-            .get_project(project)
-            .get_property("odps.schema.model.enabled", "false")
-            == "true"
+                self.get_odps_client()
+                .get_project(project)
+                .get_property("odps.schema.model.enabled", "false")
+                == "true"
         )
 
     ###
@@ -121,7 +122,7 @@ class MaxComputeAdapter(SQLAdapter):
         self.get_odps_client().execute_sql(sql)
 
     def rename_relation(
-        self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
+            self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
     ) -> None:
         # use macro to rename
         super().rename_relation(from_relation, to_relation)
@@ -139,13 +140,13 @@ class MaxComputeAdapter(SQLAdapter):
         )
 
     def execute_macro(
-        self,
-        macro_name: str,
-        macro_resolver: Optional[MacroResolverProtocol] = None,
-        project: Optional[str] = None,
-        context_override: Optional[Dict[str, Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
-        needs_conn: bool = False,
+            self,
+            macro_name: str,
+            macro_resolver: Optional[MacroResolverProtocol] = None,
+            project: Optional[str] = None,
+            context_override: Optional[Dict[str, Any]] = None,
+            kwargs: Optional[Dict[str, Any]] = None,
+            needs_conn: bool = False,
     ) -> AttrDict:
         sql = super().execute_macro(
             macro_name,
@@ -155,7 +156,7 @@ class MaxComputeAdapter(SQLAdapter):
             kwargs=kwargs,
             needs_conn=needs_conn,
         )
-        inst = self.get_odps_client().run_sql(sql=sql)
+        inst = self.get_odps_client().run_sql(sql=sql, hints=GLOBAL_SQL_HINTS)
         logger.debug(f"create instance id '{inst.id}', execute_sql: '{sql}'")
         inst.wait_for_success()
         return sql
@@ -217,12 +218,12 @@ class MaxComputeAdapter(SQLAdapter):
             time.sleep(5)
 
     def list_relations_without_caching(
-        self,
-        schema_relation: MaxComputeRelation,
+            self,
+            schema_relation: MaxComputeRelation,
     ) -> List[MaxComputeRelation]:
         logger.debug(f"list_relations_without_caching: {schema_relation}")
         if not self.check_schema_exists(
-            schema_relation.database, schema_relation.schema
+                schema_relation.database, schema_relation.schema
         ):
             return []
         results = self.get_odps_client().list_tables(
@@ -258,6 +259,100 @@ class MaxComputeAdapter(SQLAdapter):
             f"check_schema_exists: {database}.{schema}, answer is {schema_exist}"
         )
         return schema_exist
+
+    def _get_one_catalog(
+            self,
+            information_schema: InformationSchema,
+            schemas: Set[str],
+            used_schemas: FrozenSet[Tuple[str, str]],
+    ) -> "agate.Table":
+        sql_column_names = [
+            "table_database", "table_schema", "table_name", "table_type",
+            "table_comment", "column_name", "column_type",
+            "column_comment", "table_owner"
+        ]
+        sql_rows = []
+
+        for schema in schemas:
+            results = self.get_odps_client().list_tables(
+                schema=schema
+            )
+            for odps_table in results:
+                table_database = self.get_odps_client().project
+                table_schema = schema
+                table_name = odps_table.name
+                if odps_table or odps_table.is_materialized_view:
+                    table_type = "view"
+                else:
+                    table_type = "table"
+                table_comment = odps_table.comment
+                table_owner = odps_table.owner
+                for column in odps_table.table_schema.simple_columns:
+                    column_name = column.name
+                    column_type = column.type.name
+                    column_comment = column.comment
+                    sql_rows.append(
+                        (
+                            table_database,
+                            table_schema,
+                            table_name,
+                            table_type,
+                            table_comment,
+                            column_name,
+                            column_type,
+                            column_comment,
+                            table_owner,
+                        )
+                    )
+        table_instance = Table(sql_rows, column_names=sql_column_names)
+        results = self._catalog_filter_table(table_instance, used_schemas)
+        return results
+
+    def _get_one_catalog_by_relations(
+            self,
+            information_schema: InformationSchema,
+            relations: List[MaxComputeRelation],
+            used_schemas: FrozenSet[Tuple[str, str]],
+    ) -> "agate.Table":
+        sql_column_names = [
+            "table_database", "table_schema", "table_name", "table_type",
+            "table_comment", "column_name", "column_type",
+            "column_comment", "table_owner"
+        ]
+        sql_rows = []
+
+        for relation in relations:
+            odps_table = self.get_odps_table_by_relation(relation)
+            table_database = relation.project
+            table_schema = relation.schema
+            table_name = relation.table
+
+            if odps_table or odps_table.is_materialized_view:
+                table_type = "view"
+            else:
+                table_type = "table"
+            table_comment = odps_table.comment
+            table_owner = odps_table.owner
+            for column in odps_table.table_schema.simple_columns:
+                column_name = column.name
+                column_type = column.type.name
+                column_comment = column.comment
+                sql_rows.append(
+                    (
+                        table_database,
+                        table_schema,
+                        table_name,
+                        table_type,
+                        table_comment,
+                        column_name,
+                        column_type,
+                        column_comment,
+                        table_owner,
+                    )
+                )
+        table_instance = Table(sql_rows, column_names=sql_column_names)
+        results = self._catalog_filter_table(table_instance, used_schemas)  # type: ignore[arg-type]
+        return results
 
     # MaxCompute does not support transactions
     def clear_transaction(self) -> None:

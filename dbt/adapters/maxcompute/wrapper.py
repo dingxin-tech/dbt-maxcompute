@@ -6,16 +6,22 @@ from odps.dbapi import Cursor, Connection
 from odps.errors import ODPSError
 import re
 
+from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
+
 
 class ConnectionWrapper(Connection):
 
     def cursor(self, *args, **kwargs):
+        # add hints
+        hints = self._hints.copy()
+        hints.update(GLOBAL_SQL_HINTS)
+
         return CursorWrapper(
             self,
             *args,
             use_sqa=self._use_sqa,
             fallback_policy=self._fallback_policy,
-            hints=self._hints,
+            hints=hints,
             **kwargs,
         )
 

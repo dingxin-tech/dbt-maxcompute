@@ -13,13 +13,12 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 
-
 class TestSimpleMaterializationsMaxCompute(BaseSimpleMaterializations):
-    # https://discourse.getdbt.com/t/issue-with-undefined-schema-in-dbt-adapter-test-execution/14151
     pass
 
 
 class TestSingularTestsMaxCompute(BaseSingularTests):
+    # passed
     pass
 
 
