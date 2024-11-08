@@ -55,6 +55,7 @@ setup(
         "dbt-common>=1.0.4,<2.0",
         "dbt-adapters>=1.1.1,<2.0",
         "pyodps",  # latest
+        "pandas>=0.17.0"
         # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
         "dbt-core>=1.8.0",
     ],

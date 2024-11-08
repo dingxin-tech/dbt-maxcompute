@@ -1,8 +1,0 @@
--- {% macro maxcompute__get_catalog_relations(information_schema, relations) -%}
---     -- see impl.py
--- {%- endmacro %}
---
---
--- {% macro maxcompute__get_catalog(information_schema, schemas) -%}
---     -- see impl.py
--- {%- endmacro %}

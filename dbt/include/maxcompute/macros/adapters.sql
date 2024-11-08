@@ -4,38 +4,44 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
 {% macro maxcompute__truncate_relation(relation) -%}
-{% if relation.schema -%}
-    truncate table {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }};
-{%- else -%}
-    truncate table {{ relation.database }}.{{ relation.identifier }};
-{%- endif -%}
+    {% if relation.is_table -%}
+        {% if relation.schema -%}
+            TRUNCATE TABLE {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }};
+        {% else -%}
+            TRUNCATE TABLE {{ relation.database }}.{{ relation.identifier }};
+        {% endif -%}
+    {% endif -%}
 {% endmacro %}
 
 {% macro maxcompute__rename_relation(from_relation, to_relation) -%}
-{% if from_relation.schema -%}
-    {% if from_relation.is_view -%}
-        alter view {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
-    {%- else -%}
-        alter table {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
-    {%- endif -%}
-{%- else -%}
-    {% if from_relation.is_view -%}
-        alter view {{ from_relation.database }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }}
-    {%- else -%}
-        alter table {{ from_relation.database }}.{{ from_relation.identifier }} rename to {{ to_relation.identifier }};
-    {%- endif -%}
-{%- endif -%}
+    {% if from_relation.schema -%}
+        {% if from_relation.is_table -%}
+            ALTER TABLE {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }}
+            RENAME TO {{ to_relation.identifier }};
+        {% else -%}
+            ALTER VIEW {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }}
+            RENAME TO {{ to_relation.identifier }};
+        {% endif -%}
+    {% else -%}
+        {% if from_relation.is_table -%}
+            ALTER TABLE {{ from_relation.database }}.{{ from_relation.identifier }}
+            RENAME TO {{ to_relation.identifier }};
+        {% else -%}
+            ALTER VIEW {{ from_relation.database }}.{{ from_relation.identifier }}
+            RENAME TO {{ to_relation.identifier }};
+        {% endif -%}
+    {% endif -%}
 {% endmacro %}
 
-
-{% macro maxcompute__alter_column_type(relation,column_name,new_column_type) -%}
-{% if relation.schema -%}
-    alter table {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} change {{ column_name }} {{ column_name }} {{ new_column_type }};
-{%- else -%}
-    alter table {{ relation.database }}.{{ relation.identifier }} change {{ column_name }} {{ column_name }} {{ new_column_type }};
-{%- endif -%}
+{% macro maxcompute__alter_column_type(relation, column_name, new_column_type) -%}
+    {% if relation.schema -%}
+        ALTER TABLE {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }}
+        CHANGE {{ column_name }} {{ column_name }} {{ new_column_type }};
+    {% else -%}
+        ALTER TABLE {{ relation.database }}.{{ relation.identifier }}
+        CHANGE {{ column_name }} {{ column_name }} {{ new_column_type }};
+    {% endif -%}
 {% endmacro %}
-
 
 {% macro maxcompute__copy_grants() -%}
     {{ return(True) }}
@@ -43,31 +49,48 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 
 /* {# override dbt/include/global_project/macros/relations/table/create.sql #} */
 {% macro maxcompute__create_table_as(temporary, relation, sql) -%}
-{% if relation.schema -%}
-  create table if not exists {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as (
-      {{ sql }}
-  )
-{%- else -%}
-  create table if not exists {{ relation.database }}.default.{{ relation.identifier }} as (
-      {{ sql }}
-  )
-{%- endif -%}
-{% if temporary %}
-    lifecyclie 1
-{%- endif -%}
-;
-{%- endmacro %}
+    {% if relation.schema -%}
+        CREATE TABLE IF NOT EXISTS {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }}
+        {% if temporary %}
+            LIFECYCLE 1
+        {% endif %}
+        AS (
+            {{ sql }}
+        )
+    {% else -%}
+        CREATE TABLE IF NOT EXISTS {{ relation.database }}.default.{{ relation.identifier }}
+        {% if temporary %}
+            LIFECYCLE 1
+        {% endif %}
+        AS (
+            {{ sql }}
+        )
+    {% endif -%}
+    ;
+{% endmacro %}
 
 /* {# override dbt/include/global_project/macros/relations/view/create.sql #} */
 {% macro maxcompute__create_view_as(relation, sql) -%}
-{% if relation.schema -%}
-  create or replace view {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} as (
-         {{ sql }}
-         );
-{%- else -%}
-  create or replace view {{ relation.database }}.default.{{ relation.identifier }} as (
-         {{ sql }}
-         );
-{%- endif -%}
+    {% if relation.schema -%}
+        CREATE OR REPLACE VIEW {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} AS (
+            {{ sql }}
+        );
+    {% else -%}
+        CREATE OR REPLACE VIEW {{ relation.database }}.default.{{ relation.identifier }} AS (
+            {{ sql }}
+        );
+    {% endif -%}
+{% endmacro %}
+
+
+{% macro maxcompute__current_timestamp() -%}
+    current_timestamp()
 {%- endmacro %}
 
+-- only change varchar to string, dbt-adapters/dbt/include/global_project/macros/materializations/snapshots/strategies.sql
+{% macro maxcompute__snapshot_hash_arguments(args) -%}
+    md5({%- for arg in args -%}
+        coalesce(cast({{ arg }} as string ), '')
+        {% if not loop.last %} || '|' || {% endif %}
+    {%- endfor -%})
+{%- endmacro %}

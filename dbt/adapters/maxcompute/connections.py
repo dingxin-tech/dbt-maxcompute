@@ -9,9 +9,8 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 
 from odps import ODPS
-import odps.dbapi
 
-from dbt.adapters.maxcompute.context import set_dbt_default_schema
+from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
@@ -38,7 +37,7 @@ class MaxComputeCredentials(Credentials):
         return self.endpoint + "_" + self.database
 
     def _connection_keys(self):
-        return ("project", "database")
+        return ("project", "database", "schema", "endpoint")
 
 
 class MaxComputeConnectionManager(SQLConnectionManager):
@@ -59,20 +58,13 @@ class MaxComputeConnectionManager(SQLConnectionManager):
             endpoint=credentials.endpoint,
         )
         o.schema = credentials.schema
-        set_dbt_default_schema(credentials.schema)
 
         try:
             o.get_project().reload()
         except Exception as e:
             raise DbtConfigError(f"Failed to connect to MaxCompute: {str(e)}") from e
 
-        handle = ConnectionWrapper(
-            odps=o,
-            hints={
-                "odps.sql.submit.mode": "script",
-                "odps.sql.allow.cartesian": "true",
-            },
-        )
+        handle = ConnectionWrapper(odps=o, hints=GLOBAL_SQL_HINTS)
         connection.state = "open"
         connection.handle = handle
         return connection

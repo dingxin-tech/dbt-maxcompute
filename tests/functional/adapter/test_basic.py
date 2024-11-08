@@ -13,7 +13,9 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 
+
 class TestSimpleMaterializationsMaxCompute(BaseSimpleMaterializations):
+    # passed
     pass
 
 
@@ -23,32 +25,40 @@ class TestSingularTestsMaxCompute(BaseSingularTests):
 
 
 class TestSingularTestsEphemeralMaxCompute(BaseSingularTestsEphemeral):
+    # unsupported operand type(s) for +=: 'NoneType' and 'str'
     pass
 
 
 class TestEmptyMaxCompute(BaseEmpty):
+    # passed
     pass
 
 
 class TestEphemeralMaxCompute(BaseEphemeral):
+    # unsupported operand type(s) for +=: 'NoneType' and 'str'
     pass
 
 
 class TestIncrementalMaxCompute(BaseIncremental):
+    # passed
     pass
 
 
 class TestGenericTestsMaxCompute(BaseGenericTests):
+    # passed
     pass
 
 
 class TestSnapshotCheckColsMaxCompute(BaseSnapshotCheckCols):
+    # merge into target table must be transactional table
     pass
 
 
 class TestSnapshotTimestampMaxCompute(BaseSnapshotTimestamp):
+    # merge into target table must be transactional table
     pass
 
 
 class TestBaseAdapterMethodMaxCompute(BaseAdapterMethod):
+    # passed
     pass

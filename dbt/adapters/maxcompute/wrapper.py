@@ -12,16 +12,12 @@ from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 class ConnectionWrapper(Connection):
 
     def cursor(self, *args, **kwargs):
-        # add hints
-        hints = self._hints.copy()
-        hints.update(GLOBAL_SQL_HINTS)
-
         return CursorWrapper(
             self,
             *args,
             use_sqa=self._use_sqa,
             fallback_policy=self._fallback_policy,
-            hints=hints,
+            hints=self._hints,
             **kwargs,
         )
 
@@ -47,7 +43,7 @@ class CursorWrapper(Cursor):
                     normalized_params.append(f"{param}BD")
                 elif isinstance(param, datetime):
                     normalized_params.append(
-                        f"TIMESTAMP_NTZ'{param.strftime('%Y-%m-%d %H:%M:%S')}'"
+                        f"TIMESTAMP'{param.strftime('%Y-%m-%d %H:%M:%S')}'"
                     )
                 elif isinstance(param, str):
                     normalized_params.append(f"'{param}'")

@@ -5,8 +5,6 @@ from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.contracts.relation import RelationType, Path, Policy
 from odps.models import Table
 
-from dbt.adapters.maxcompute.context import get_dbt_default_schema
-
 Self = TypeVar("Self", bound="MaxComputeRelation")
 
 
@@ -45,12 +43,6 @@ class MaxComputeRelation(BaseRelation):
             }
         )
     )
-
-    @property
-    def schema(self) -> Optional[str]:
-        if self.path.schema or self.path.schema == "":
-            return get_dbt_default_schema()
-        return self.path.schema
 
     @property
     def project(self):

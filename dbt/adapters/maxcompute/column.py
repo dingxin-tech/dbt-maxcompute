@@ -5,8 +5,6 @@ from dbt.adapters.base.column import Column
 from odps.models.table import TableSchema
 from odps.types import Decimal, Varchar
 
-_PARENT_DATA_TYPE_KEY = "__parent_data_type"
-
 Self = TypeVar("Self", bound="MaxComputeColumn")
 
 
@@ -24,11 +22,7 @@ class MaxComputeColumn(Column):
         return "`{}`".format(self.column)
 
     def literal(self, value):
-        return "cast({} as {})".format(value, self.dtype)
-
-    @property
-    def data_type(self) -> str:
-        return self.dtype
+        return "cast({} as {})".format(value, self.data_type)
 
     @classmethod
     def numeric_type(cls, dtype: str, precision: Any, scale: Any) -> str:
@@ -37,14 +31,22 @@ class MaxComputeColumn(Column):
         return dtype
 
     def is_string(self) -> bool:
-        return self.dtype.lower() == "string"
+        return self.dtype.lower() in [
+            "string" "text",
+            "character varying",
+            "character",
+            "char" "varchar",
+        ]
+
+    def string_type(cls, size: int) -> str:
+        return "string"
 
     def can_expand_to(self: Self, other_column: Self) -> bool:  # type: ignore
         """returns True if both columns are strings"""
         return self.is_string() and other_column.is_string()
 
     def __repr__(self) -> str:
-        return "<MaxComputeColumn {} ({})>".format(self.name, self.data_type)
+        return "<MaxComputeColumn {} ({})>".format(self.name, self.dtype)
 
     @classmethod
     def from_odps_column(cls, column: TableSchema.TableColumn):
