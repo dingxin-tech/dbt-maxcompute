@@ -118,8 +118,6 @@ class MaxComputeAdapter(SQLAdapter):
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
         # use macro to truncate
         sql = super().truncate_relation(relation)
-        logger.debug(f"execute sql: {sql}")
-        self.get_odps_client().execute_sql(sql)
 
     def rename_relation(
         self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
@@ -179,7 +177,6 @@ class MaxComputeAdapter(SQLAdapter):
                 return
             else:
                 raise e
-        # self.checkSchemaDeeply(relation.schema, relation.database, True)
 
     def drop_schema(self, relation: MaxComputeRelation) -> None:
         logger.debug(f"drop_schema: '{relation.project}.{relation.schema}'")

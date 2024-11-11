@@ -49,7 +49,7 @@ class MaxComputeRelation(BaseRelation):
         return self.database
 
     def information_schema(
-        self, identifier: Optional[str] = None
+            self, identifier: Optional[str] = None
     ) -> "MaxComputeInformationSchema":
         return MaxComputeInformationSchema.from_relation(self, identifier)
 
@@ -68,14 +68,6 @@ class MaxComputeRelation(BaseRelation):
             type=RelationType.View if is_view else RelationType.Table,
         )
 
-    def render(self) -> str:
-        render_str = self.project
-        if self.schema:
-            render_str += "." + self.schema
-        if self.table:
-            render_str += "." + self.table
-        return render_str
-
 
 @dataclass(frozen=True, eq=False, repr=False)
 class MaxComputeInformationSchema(InformationSchema):
@@ -83,7 +75,7 @@ class MaxComputeInformationSchema(InformationSchema):
 
     @classmethod
     def get_path(
-        cls, relation: BaseRelation, information_schema_view: Optional[str]
+            cls, relation: BaseRelation, information_schema_view: Optional[str]
     ) -> Path:
         return Path(
             database="SYSTEM_CATALOG",
@@ -99,9 +91,9 @@ class MaxComputeInformationSchema(InformationSchema):
 
     @classmethod
     def get_quote_policy(
-        cls,
-        relation,
-        information_schema_view: Optional[str],
+            cls,
+            relation,
+            information_schema_view: Optional[str],
     ) -> Policy:
         return relation.quote_policy.replace(
             database=False, schema=False, identifier=False

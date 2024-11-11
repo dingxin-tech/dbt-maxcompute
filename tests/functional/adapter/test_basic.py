@@ -25,7 +25,7 @@ class TestSingularTestsMaxCompute(BaseSingularTests):
 
 
 class TestSingularTestsEphemeralMaxCompute(BaseSingularTestsEphemeral):
-    # unsupported operand type(s) for +=: 'NoneType' and 'str'
+    # passed
     pass
 
 
@@ -35,7 +35,7 @@ class TestEmptyMaxCompute(BaseEmpty):
 
 
 class TestEphemeralMaxCompute(BaseEphemeral):
-    # unsupported operand type(s) for +=: 'NoneType' and 'str'
+    # passed
     pass
 
 
