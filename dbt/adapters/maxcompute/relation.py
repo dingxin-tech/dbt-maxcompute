@@ -48,8 +48,12 @@ class MaxComputeRelation(BaseRelation):
     def project(self):
         return self.database
 
+    @property
+    def is_transactional(self):
+        return self.get("transactional", False)
+
     def information_schema(
-            self, identifier: Optional[str] = None
+        self, identifier: Optional[str] = None
     ) -> "MaxComputeInformationSchema":
         return MaxComputeInformationSchema.from_relation(self, identifier)
 
@@ -61,11 +65,16 @@ class MaxComputeRelation(BaseRelation):
 
         is_view = table.is_virtual_view or table.is_materialized_view
 
+        kwargs = {
+            "transactional": table.is_transactional,
+        }
+
         return cls.create(
             database=table.project.name,
             schema=schema,
             identifier=identifier,
             type=RelationType.View if is_view else RelationType.Table,
+            **kwargs,
         )
 
 
@@ -75,7 +84,7 @@ class MaxComputeInformationSchema(InformationSchema):
 
     @classmethod
     def get_path(
-            cls, relation: BaseRelation, information_schema_view: Optional[str]
+        cls, relation: BaseRelation, information_schema_view: Optional[str]
     ) -> Path:
         return Path(
             database="SYSTEM_CATALOG",
@@ -91,10 +100,13 @@ class MaxComputeInformationSchema(InformationSchema):
 
     @classmethod
     def get_quote_policy(
-            cls,
-            relation,
-            information_schema_view: Optional[str],
+        cls,
+        relation,
+        information_schema_view: Optional[str],
     ) -> Policy:
         return relation.quote_policy.replace(
             database=False, schema=False, identifier=False
         )
+
+    def set_transactional(self, transactional: bool) -> None:
+        self.transactional = transactional

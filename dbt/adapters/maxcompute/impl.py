@@ -19,6 +19,7 @@ from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
+from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import AttrDict
 from odps.errors import ODPSError
 
@@ -34,7 +35,11 @@ logger = AdapterLogger("MaxCompute")
 @dataclass
 class MaxComputeConfig(AdapterConfig):
     partitionColumns: Optional[List[Dict[str, str]]] = None
+    partitions: Optional[List[str]] = None
+
+    primaryKeys: Optional[List[Dict[str, str]]] = None
     sqlHints: Optional[Dict[str, str]] = None
+    tblProperties: Optional[Dict[str, str]] = None
 
 
 class MaxComputeAdapter(SQLAdapter):
@@ -348,3 +353,21 @@ class MaxComputeAdapter(SQLAdapter):
             for column_name, column_type_code, *_ in cursor.description
         ]
         return columns
+
+    def timestamp_add_sql(
+        self, add_to: str, number: int = 1, interval: str = "hour"
+    ) -> str:
+        return f"dateadd({add_to}, {number}, '{interval}')"
+
+    def string_add_sql(
+        self,
+        add_to: str,
+        value: str,
+        location="append",
+    ) -> str:
+        if location == "append":
+            return f"concat({add_to},'{value}')"
+        elif location == "prepend":
+            return f"concat('{value}',{add_to})"
+        else:
+            raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')

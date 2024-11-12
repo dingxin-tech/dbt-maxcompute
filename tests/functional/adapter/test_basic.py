@@ -49,13 +49,37 @@ class TestGenericTestsMaxCompute(BaseGenericTests):
     pass
 
 
+schema_seed__yml = """
+seeds:
+  - name: added
+    config:
+      transactional: true
+"""
+
+"""
+Since the update operation on seed 'added' is involved in the test case, 
+'added' must be constructed into a transaction table. 
+
+This does not mean that the 'dbt snapshot' cannot be performed normally on an ordinary table. 
+It only matters if the user wants to update or delete operation, the target table must be the transaction table.
+"""
+
+
 class TestSnapshotCheckColsMaxCompute(BaseSnapshotCheckCols):
-    # merge into target table must be transactional table
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"seeds.yml": schema_seed__yml}
+
+    # passed
     pass
 
 
 class TestSnapshotTimestampMaxCompute(BaseSnapshotTimestamp):
-    # merge into target table must be transactional table
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"seeds.yml": schema_seed__yml}
+
+    # passed
     pass
 
 
