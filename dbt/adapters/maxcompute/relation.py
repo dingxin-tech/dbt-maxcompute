@@ -59,22 +59,16 @@ class MaxComputeRelation(BaseRelation):
 
     @classmethod
     def from_odps_table(cls, table: Table):
-        identifier = table.name
         schema = table.get_schema()
         schema = schema.name if schema else "default"
 
         is_view = table.is_virtual_view or table.is_materialized_view
 
-        kwargs = {
-            "transactional": table.is_transactional,
-        }
-
         return cls.create(
             database=table.project.name,
             schema=schema,
-            identifier=identifier,
+            identifier=table.name,
             type=RelationType.View if is_view else RelationType.Table,
-            **kwargs,
         )
 
 
@@ -107,6 +101,3 @@ class MaxComputeInformationSchema(InformationSchema):
         return relation.quote_policy.replace(
             database=False, schema=False, identifier=False
         )
-
-    def set_transactional(self, transactional: bool) -> None:
-        self.transactional = transactional

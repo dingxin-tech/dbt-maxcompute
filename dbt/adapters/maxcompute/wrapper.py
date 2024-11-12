@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from decimal import Decimal
 
@@ -52,8 +53,7 @@ class CursorWrapper(Cursor):
             return normalized_params
 
         def remove_comments(input_string):
-            logger.debug(f"remove_comments: {input_string}")
-            # 使用正则表达式匹配 /* 开始和 */ 结束之间的内容，并将其替换为空字符串
+            # Use a regular expression to remove comments
             result = re.sub(r"/\*[^+].*?\*/", "", input_string, flags=re.DOTALL)
             return result
 
@@ -61,8 +61,9 @@ class CursorWrapper(Cursor):
         parameters = param_normalization(parameters)
         operation = replace_sql_placeholders(operation, parameters)
 
-        # retry three times
-        for i in range(4):
+        # retry three times, each time wait for 10 seconds
+        retry_times = 3
+        for i in range(retry_times):
             try:
                 super().execute(operation)
                 self._instance.wait_for_success()
@@ -71,10 +72,19 @@ class CursorWrapper(Cursor):
                 # 0130201: view not found, 0110061, 0130131: table not found
                 if (
                     e.code == "ODPS-0130201"
+                    or e.code == "ODPS-0130211"  # Table or view already exists
                     or e.code == "ODPS-0110061"
                     or e.code == "ODPS-0130131"
+                    or e.code == "ODPS-0420111"
                 ):
-                    logger.debug("retry when execute sql: %s, error: %s", operation, e)
+                    if i == retry_times - 1:
+                        raise e
+                    logger.warning(f"Retry because of {e}, retry times {i}")
+                    time.sleep(10)
                     continue
                 else:
+                    o = self.connection.odps
+                    if e.instance_id:
+                        instance = o.get_instance(e.instance_id)
+                        logger.error(instance.get_logview_address())
                     raise e

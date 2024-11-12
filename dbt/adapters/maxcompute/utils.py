@@ -1,6 +1,18 @@
 import time
 import functools
 
+from odps.errors import ODPSError
+
+
+def is_schema_not_found(e: ODPSError) -> bool:
+    if "ODPS-0110061" in str(e):
+        return True
+    if "ODPS-0422155" in str(e):
+        return True
+    if "ODPS-0420111" in str(e):
+        return True
+    return False
+
 
 def retry_on_exception(
     max_retries=3, delay=1, backoff=2, exceptions=(Exception,), condition=None

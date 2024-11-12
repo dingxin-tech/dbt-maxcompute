@@ -21,13 +21,15 @@ from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import AttrDict
-from odps.errors import ODPSError
+from odps.errors import ODPSError, NoSuchObject
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
 from dbt.adapters.maxcompute.column import MaxComputeColumn
 from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 from dbt.adapters.maxcompute.relation import MaxComputeRelation
 from dbt.adapters.events.logging import AdapterLogger
+
+from dbt.adapters.maxcompute.utils import is_schema_not_found
 
 logger = AdapterLogger("MaxCompute")
 
@@ -82,13 +84,20 @@ class MaxComputeAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         return conn.handle.odps
 
-    def get_odps_table_by_relation(self, relation: MaxComputeRelation):
-        if self.get_odps_client().exist_table(
-            relation.identifier, relation.project, relation.schema
-        ):
-            return self.get_odps_client().get_table(
+    def get_odps_table_by_relation(self, relation: MaxComputeRelation, retry_times=1):
+        # Sometimes the newly created table will be judged as not existing, so add retry to obtain it.
+        for i in range(retry_times):
+            table = self.get_odps_client().get_table(
                 relation.identifier, relation.project, relation.schema
             )
+            try:
+                table.reload()
+                return table
+            except NoSuchObject:
+                logger.info(f"Table {relation.render()} does not exist, retrying...")
+                time.sleep(10)
+                continue
+        logger.warning(f"Table {relation.render()} does not exist.")
         return None
 
     @lru_cache(maxsize=100)  # Cache results with no limit on size
@@ -115,20 +124,30 @@ class MaxComputeAdapter(SQLAdapter):
         is_cached = self._schema_is_cached(relation.database, relation.schema)
         if is_cached:
             self.cache_dropped(relation)
-        conn = self.connections.get_thread_connection()
-        conn.handle.odps.delete_table(
+        self.get_odps_client().delete_table(
             relation.identifier, relation.project, True, relation.schema
         )
 
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
+        # from_relation type maybe wrong, here is a workaround.
+        table = self.get_odps_table_by_relation(relation, 3)
+        if table is None:
+            raise DbtRuntimeError(
+                f"Table {relation.render()} does not exist, cannot truncate"
+            )
+        relation = MaxComputeRelation.from_odps_table(table)
         # use macro to truncate
-        sql = super().truncate_relation(relation)
+        super().truncate_relation(relation)
 
     def rename_relation(
         self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
     ) -> None:
         # from_relation type maybe wrong, here is a workaround.
-        from_table = self.get_odps_table_by_relation(from_relation)
+        from_table = self.get_odps_table_by_relation(from_relation, 3)
+        if from_table is None:
+            raise DbtRuntimeError(
+                f"Table {from_relation.render()} does not exist, cannot truncate"
+            )
         from_relation = MaxComputeRelation.from_odps_table(from_table)
 
         # use macro to rename
@@ -136,7 +155,7 @@ class MaxComputeAdapter(SQLAdapter):
 
     def get_columns_in_relation(self, relation: MaxComputeRelation):
         logger.debug(f"get_columns_in_relation: {relation.render()}")
-        odps_table = self.get_odps_table_by_relation(relation)
+        odps_table = self.get_odps_table_by_relation(relation, 3)
         return (
             [
                 MaxComputeColumn.from_odps_column(column)
@@ -163,9 +182,7 @@ class MaxComputeAdapter(SQLAdapter):
             kwargs=kwargs,
             needs_conn=needs_conn,
         )
-        inst = self.get_odps_client().run_sql(sql=sql, hints=GLOBAL_SQL_HINTS)
-        logger.debug(f"create instance id '{inst.id}', execute_sql: '{sql}'")
-        inst.wait_for_success()
+        self.connections.execute(str(sql))
         return sql
 
     def create_schema(self, relation: MaxComputeRelation) -> None:
@@ -178,7 +195,7 @@ class MaxComputeAdapter(SQLAdapter):
         try:
             self.get_odps_client().create_schema(relation.schema, relation.database)
         except ODPSError as e:
-            if e.code == "ODPS-0110061":
+            if is_schema_not_found(e):
                 return
             else:
                 raise e
@@ -191,9 +208,12 @@ class MaxComputeAdapter(SQLAdapter):
         # The same purpose is achieved by directly deleting and capturing the schema does not exist exception.
 
         try:
+            self.cache.drop_schema(relation.database, relation.schema)
+            for relation in self.list_relations_without_caching(relation):
+                self.drop_relation(relation)
             self.get_odps_client().delete_schema(relation.schema, relation.database)
         except ODPSError as e:
-            if e.code == "ODPS-0110061":
+            if is_schema_not_found(e):
                 return
             else:
                 raise e
@@ -203,17 +223,20 @@ class MaxComputeAdapter(SQLAdapter):
         schema_relation: MaxComputeRelation,
     ) -> List[MaxComputeRelation]:
         logger.debug(f"list_relations_without_caching: {schema_relation}")
-        if not self.check_schema_exists(
-            schema_relation.database, schema_relation.schema
-        ):
-            return []
-        results = self.get_odps_client().list_tables(
-            project=schema_relation.database, schema=schema_relation.schema
-        )
-        relations = []
-        for table in results:
-            relations.append(MaxComputeRelation.from_odps_table(table))
-        return relations
+        try:
+            relations = []
+            results = self.get_odps_client().list_tables(
+                project=schema_relation.database, schema=schema_relation.schema
+            )
+            for table in results:
+                relations.append(MaxComputeRelation.from_odps_table(table))
+            return relations
+        except ODPSError as e:
+            if is_schema_not_found(e):
+                return []
+            else:
+                print("Raise! " + str(e))
+                raise e
 
     @classmethod
     def quote(cls, identifier):
@@ -285,16 +308,16 @@ class MaxComputeAdapter(SQLAdapter):
             table_name = relation.table
 
             if odps_table or odps_table.is_materialized_view:
-                table_type = "view"
+                table_type = "VIEW"
             else:
-                table_type = "table"
-            table_comment = "'" + odps_table.comment + "'"
+                table_type = "TABLE"
+            table_comment = odps_table.comment
             table_owner = odps_table.owner
             column_index = 0
             for column in odps_table.table_schema.simple_columns:
                 column_name = column.name
                 column_type = column.type.name
-                column_comment = "'" + column.comment + "'"
+                column_comment = column.comment
                 sql_rows.append(
                     (
                         table_database,
