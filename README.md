@@ -1,9 +1,14 @@
 <p align="left">
-  <img src="./icon_MaxCompute.svg" alt="MaxCompute logo" width="300" height="150" style="margin-right: 100px;"/>
+  <img src="https://raw.githubusercontent.com/aliyun/dbt-maxcompute/master/icon_MaxCompute.svg" alt="MaxCompute logo" width="300" height="150" style="margin-right: 100px;"/>
   <img src="https://raw.githubusercontent.com/dbt-labs/dbt/ec7dee39f793aa4f7dd3dae37282cc87664813e4/etc/dbt-logo-full.svg" alt="dbt logo" width="300" height="150"/>
 </p>
 
 # dbt-maxcompute
+[![PyPI version](https://img.shields.io/pypi/v/dbt-maxcompute.svg?style=flat-square)](https://pypi.python.org/pypi/dbt-maxcompute)
+[![License](https://img.shields.io/pypi/l/pyodps.svg?style=flat-square)](https://github.com/aliyun/dbt-maxcompute/blob/master/License)
+<a href="https://github.com/aliyun/dbt-maxcompute/actions/workflows/main.yml">
+<img src="https://github.com/aliyun/dbt-maxcompute/actions/workflows/main.yml/badge.svg?event=push" alt="Unit Tests Badge"/>
+</a>
 
 Welcome to the **dbt-maxCompute** repository! This project aims to extend the capabilities of **dbt** (data build tool)
 for users of Alibaba MaxCompute, a cutting-edge data processing platform.
@@ -30,9 +35,9 @@ adapter as development progresses.
 
 ### Adapter Versioning
 
-This adapter plugin follows [semantic versioning](https://semver.org/). The initial version is **v1.8.0-a2**, designed
-for compatibility with dbt Core v1.8.0. Since the plugin is in its early stages, the version number **a2** indicates
-that it is an Alpha 2 release. A stable version will be released in the future, focusing on MaxCompute-specific
+This adapter plugin follows [semantic versioning](https://semver.org/). The initial version is **v1.8.0-a0**, designed
+for compatibility with dbt Core v1.8.0. Since the plugin is in its early stages, the version number **a0** indicates
+that it is an Alpha release. A stable version will be released in the future, focusing on MaxCompute-specific
 functionality and aiming for backwards compatibility.
 
 ## Getting Started
@@ -40,8 +45,8 @@ functionality and aiming for backwards compatibility.
 ### Install the plugin
 
 ```bash
-# we use python 3.8 for this example
-conda create --name dbt-maxcompute-example python=3.8
+# we use python 3.9 for this example
+conda create --name dbt-maxcompute-example python=3.9
 conda activate dbt-maxcompute-example
 
 pip install dbt-core
