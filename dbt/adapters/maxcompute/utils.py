@@ -1,10 +1,12 @@
 import time
 import functools
 
-from odps.errors import ODPSError
+from odps.errors import ODPSError, NoSuchObject
 
 
 def is_schema_not_found(e: ODPSError) -> bool:
+    if isinstance(e, NoSuchObject):
+        return True
     if "ODPS-0110061" in str(e):
         return True
     if "ODPS-0422155" in str(e):

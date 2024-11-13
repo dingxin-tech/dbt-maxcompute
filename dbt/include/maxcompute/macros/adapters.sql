@@ -5,42 +5,23 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 
 {% macro maxcompute__truncate_relation(relation) -%}
     {% if relation.is_table -%}
-        {% if relation.schema -%}
-            TRUNCATE TABLE {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }};
-        {% else -%}
-            TRUNCATE TABLE {{ relation.database }}.{{ relation.identifier }};
-        {% endif -%}
+        TRUNCATE TABLE {{ relation.render() }};
     {% endif -%}
 {% endmacro %}
 
 {% macro maxcompute__rename_relation(from_relation, to_relation) -%}
-    {% if from_relation.schema -%}
         {% if from_relation.is_table -%}
-            ALTER TABLE {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }}
+            ALTER TABLE {{ from_relation.rendor() }}
             RENAME TO {{ to_relation.identifier }};
         {% else -%}
             ALTER VIEW {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }}
             RENAME TO {{ to_relation.identifier }};
         {% endif -%}
-    {% else -%}
-        {% if from_relation.is_table -%}
-            ALTER TABLE {{ from_relation.database }}.{{ from_relation.identifier }}
-            RENAME TO {{ to_relation.identifier }};
-        {% else -%}
-            ALTER VIEW {{ from_relation.database }}.{{ from_relation.identifier }}
-            RENAME TO {{ to_relation.identifier }};
-        {% endif -%}
-    {% endif -%}
 {% endmacro %}
 
 {% macro maxcompute__alter_column_type(relation, column_name, new_column_type) -%}
-    {% if relation.schema -%}
-        ALTER TABLE {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }}
-        CHANGE {{ column_name }} {{ column_name }} {{ new_column_type }};
-    {% else -%}
-        ALTER TABLE {{ relation.database }}.{{ relation.identifier }}
-        CHANGE {{ column_name }} {{ column_name }} {{ new_column_type }};
-    {% endif -%}
+    ALTER TABLE {{ relation.render() }}
+    CHANGE {{ column_name }} {{ column_name }} {{ new_column_type }};
 {% endmacro %}
 
 {% macro maxcompute__copy_grants() -%}
@@ -69,15 +50,9 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 
 /* {# override dbt/include/global_project/macros/relations/view/create.sql #} */
 {% macro maxcompute__create_view_as(relation, sql) -%}
-    {% if relation.schema -%}
-        CREATE OR REPLACE VIEW {{ relation.database }}.{{ relation.schema }}.{{ relation.identifier }} AS (
-            {{ sql }}
-        );
-    {% else -%}
-        CREATE OR REPLACE VIEW {{ relation.database }}.default.{{ relation.identifier }} AS (
-            {{ sql }}
-        );
-    {% endif -%}
+    CREATE OR REPLACE VIEW {{ relation.render() }} AS (
+        {{ sql }}
+    );
 {% endmacro %}
 
 {% macro create_transactional_table_as(temporary, relation, sql) -%}

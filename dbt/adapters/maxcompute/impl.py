@@ -229,7 +229,18 @@ class MaxComputeAdapter(SQLAdapter):
                 project=schema_relation.database, schema=schema_relation.schema
             )
             for table in results:
-                relations.append(MaxComputeRelation.from_odps_table(table))
+                for i in range(3):
+                    try:
+                        table.reload()
+                        relations.append(MaxComputeRelation.from_odps_table(table))
+                        break
+                    except NoSuchObject:
+                        if i == 2:
+                            logger.debug(
+                                f"Table {table.name} does not exist, skip it."
+                            )
+                        else:
+                            time.sleep(5)
             return relations
         except ODPSError as e:
             if is_schema_not_found(e):
