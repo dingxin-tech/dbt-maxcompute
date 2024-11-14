@@ -11,7 +11,7 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 
 {% macro maxcompute__rename_relation(from_relation, to_relation) -%}
         {% if from_relation.is_table -%}
-            ALTER TABLE {{ from_relation.rendor() }}
+            ALTER TABLE {{ from_relation.render() }}
             RENAME TO {{ to_relation.identifier }};
         {% else -%}
             ALTER VIEW {{ from_relation.database }}.{{ from_relation.schema }}.{{ from_relation.identifier }}
