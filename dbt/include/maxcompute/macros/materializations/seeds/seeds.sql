@@ -23,3 +23,13 @@
 
   {{ return(sql) }}
 {% endmacro %}
+
+
+{% macro maxcompute__load_csv_rows(model, agate_table) %}
+
+  {%- set column_override = model['config'].get('column_types', {}) -%}
+  {{ adapter.load_dataframe(model['database'], model['schema'], model['alias'],
+  							agate_table, column_override, model['config']['delimiter']) }}
+
+  {% do persist_docs(target_relation, model) %}
+{% endmacro %}

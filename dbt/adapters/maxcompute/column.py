@@ -14,7 +14,7 @@ class MaxComputeColumn(Column):
     comment: str = ""
 
     TYPE_LABELS = {
-        "TEXT": "STRING",
+        "TEXT": "string",
     }
 
     @property
@@ -62,7 +62,7 @@ class MaxComputeColumn(Column):
 
         return cls(
             column=column.name,
-            dtype=column.type.name,
+            dtype=column.type.name.lower(),
             char_size=char_size,
             numeric_precision=numeric_precision,
             numeric_scale=numeric_scale,

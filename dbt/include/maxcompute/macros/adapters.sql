@@ -50,9 +50,7 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 
 /* {# override dbt/include/global_project/macros/relations/view/create.sql #} */
 {% macro maxcompute__create_view_as(relation, sql) -%}
-    CREATE OR REPLACE VIEW {{ relation.render() }} AS (
-        {{ sql }}
-    );
+    CREATE OR REPLACE VIEW {{ relation.render() }} AS ({{ sql }});
 {% endmacro %}
 
 {% macro create_transactional_table_as(temporary, relation, sql) -%}

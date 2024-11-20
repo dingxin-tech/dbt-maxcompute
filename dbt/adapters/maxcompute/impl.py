@@ -5,6 +5,7 @@ from multiprocessing.context import SpawnContext
 from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple
 
 import agate
+import pandas as pd
 from agate import Table
 from dbt.adapters.base import ConstraintSupport, available
 from dbt.adapters.base.relation import InformationSchema
@@ -14,6 +15,7 @@ from dbt.adapters.capability import (
     CapabilitySupport,
     Support,
 )
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.protocol import AdapterConfig
@@ -390,3 +392,40 @@ class MaxComputeAdapter(SQLAdapter):
             return f"concat('{value}',{add_to})"
         else:
             raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')
+
+    def validate_sql(self, sql: str) -> AdapterResponse:
+        res = self.connections.execute(sql)
+        return res[0]
+
+    @available.parse_none
+    def load_dataframe(
+        self,
+        database: str,
+        schema: str,
+        table_name: str,
+        agate_table: "agate.Table",
+        column_override: Dict[str, str],
+        field_delimiter: str,
+    ) -> None:
+        file_path = agate_table.original_abspath
+
+        timestamp_columns = [key for key, value in column_override.items() if value == "timestamp"]
+
+        for i, column_type in enumerate(agate_table.column_types):
+            if isinstance(column_type, agate.data_types.date_time.DateTime):
+                timestamp_columns.append(agate_table.column_names[i])
+
+        print(timestamp_columns)
+
+        pd_dataframe = pd.read_csv(
+            file_path, delimiter=field_delimiter, parse_dates=timestamp_columns
+        )
+
+        self.get_odps_client().write_table(
+            table_name,
+            pd_dataframe,
+            project=database,
+            schema=schema,
+            create_table=False,
+            create_partition=False,
+        )

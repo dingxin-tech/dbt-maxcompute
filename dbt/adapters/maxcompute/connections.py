@@ -8,7 +8,7 @@ from dbt.adapters.contracts.connection import Credentials, AdapterResponse
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 
-from odps import ODPS
+from odps import ODPS, options
 
 from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
@@ -58,6 +58,8 @@ class MaxComputeConnectionManager(SQLConnectionManager):
             endpoint=credentials.endpoint,
         )
         o.schema = credentials.schema
+        # always use UTC timezone
+        options.local_timezone = False
 
         try:
             o.get_project().reload()

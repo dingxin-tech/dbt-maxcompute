@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 
 from dbt.adapters.events.logging import AdapterLogger
@@ -37,10 +37,14 @@ class CursorWrapper(Cursor):
                 return None
             normalized_params = []
             for param in params:
-                if isinstance(param, Decimal):
+                if param is None:
+                    normalized_params.append("NULL")
+                elif isinstance(param, Decimal):
                     normalized_params.append(f"{param}BD")
                 elif isinstance(param, datetime):
                     normalized_params.append(f"TIMESTAMP'{param.strftime('%Y-%m-%d %H:%M:%S')}'")
+                elif isinstance(param, date):
+                    normalized_params.append(f"DATE'{param.strftime('%Y-%m-%d')}'")
                 elif isinstance(param, str):
                     normalized_params.append(f"'{param}'")
                 else:
