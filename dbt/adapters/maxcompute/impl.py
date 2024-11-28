@@ -23,6 +23,7 @@ from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import AttrDict
+from odps import ODPS
 from odps.errors import ODPSError, NoSuchObject
 
 from dbt.adapters.maxcompute import MaxComputeConnectionManager
@@ -61,8 +62,8 @@ class MaxComputeAdapter(SQLAdapter):
     CONSTRAINT_SUPPORT = {
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.not_null: ConstraintSupport.ENFORCED,
-        ConstraintType.unique: ConstraintSupport.NOT_ENFORCED,
-        ConstraintType.primary_key: ConstraintSupport.NOT_ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
     }
 
@@ -77,7 +78,7 @@ class MaxComputeAdapter(SQLAdapter):
         super().__init__(config, mp_context)
         self.connections: MaxComputeConnectionManager = self.connections
 
-    def get_odps_client(self):
+    def get_odps_client(self) -> ODPS:
         conn = self.connections.get_thread_connection()
         return conn.handle.odps
 
@@ -109,6 +110,16 @@ class MaxComputeAdapter(SQLAdapter):
     ###
     # Implementations of abstract methods
     ###
+    def get_relation(
+        self, database: str, schema: str, identifier: str
+    ) -> Optional[MaxComputeRelation]:
+        odpsTable = self.get_odps_client().get_table(identifier, database, schema)
+        try:
+            odpsTable.reload()
+        except NoSuchObject:
+            return None
+        return MaxComputeRelation.from_odps_table(odpsTable)
+
     @classmethod
     def date_function(cls) -> str:
         return "current_timestamp()"
@@ -121,6 +132,8 @@ class MaxComputeAdapter(SQLAdapter):
         is_cached = self._schema_is_cached(relation.database, relation.schema)
         if is_cached:
             self.cache_dropped(relation)
+        if relation.table is None:
+            return
         self.get_odps_client().delete_table(
             relation.identifier, relation.project, True, relation.schema
         )
@@ -177,7 +190,8 @@ class MaxComputeAdapter(SQLAdapter):
             kwargs=kwargs,
             needs_conn=needs_conn,
         )
-        self.connections.execute(str(sql))
+        if sql is not None and str(sql).strip() != "None":
+            self.connections.execute(str(sql))
         return sql
 
     def create_schema(self, relation: MaxComputeRelation) -> None:
@@ -196,7 +210,7 @@ class MaxComputeAdapter(SQLAdapter):
                 raise e
 
     def drop_schema(self, relation: MaxComputeRelation) -> None:
-        logger.debug(f"drop_schema: '{relation.project}.{relation.schema}'")
+        logger.debug(f"drop_schema: '{relation.database}.{relation.schema}'")
 
         # Although the odps client has a check schema exist method, it will have a considerable delay,
         # so that it is impossible to judge how many seconds it should wait.
@@ -302,18 +316,21 @@ class MaxComputeAdapter(SQLAdapter):
         sql_rows = []
 
         for relation in relations:
-            odps_table = self.get_odps_table_by_relation(relation)
+            odps_table = self.get_odps_table_by_relation(relation, 10)
             table_database = relation.project
             table_schema = relation.schema
             table_name = relation.table
 
-            if odps_table or odps_table.is_materialized_view:
+            if not odps_table:
+                continue
+
+            if odps_table.is_virtual_view or odps_table.is_materialized_view:
                 table_type = "VIEW"
             else:
                 table_type = "TABLE"
             table_comment = odps_table.comment
             table_owner = odps_table.owner
-            column_index = 0
+            column_index = 1
             for column in odps_table.table_schema.simple_columns:
                 column_name = column.name
                 column_type = column.type.name
@@ -348,7 +365,8 @@ class MaxComputeAdapter(SQLAdapter):
 
     @classmethod
     def convert_number_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
-        return "decimal"
+        decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))
+        return "decimal" if decimals else "bigint"
 
     @classmethod
     def convert_integer_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
@@ -394,8 +412,15 @@ class MaxComputeAdapter(SQLAdapter):
             raise DbtRuntimeError(f'Got an unexpected location value of "{location}"')
 
     def validate_sql(self, sql: str) -> AdapterResponse:
-        res = self.connections.execute(sql)
+        validate_sql = "explain " + sql
+        res = self.connections.execute(validate_sql)
         return res[0]
+
+    def valid_incremental_strategies(self):
+        """The set of standard builtin strategies which this adapter supports out-of-the-box.
+        Not used to validate custom strategies defined by end users.
+        """
+        return ["append", "merge", "delete+insert"]
 
     @available.parse_none
     def load_dataframe(
@@ -415,17 +440,22 @@ class MaxComputeAdapter(SQLAdapter):
             if isinstance(column_type, agate.data_types.date_time.DateTime):
                 timestamp_columns.append(agate_table.column_names[i])
 
-        print(timestamp_columns)
-
         pd_dataframe = pd.read_csv(
             file_path, delimiter=field_delimiter, parse_dates=timestamp_columns
         )
-
-        self.get_odps_client().write_table(
-            table_name,
-            pd_dataframe,
-            project=database,
-            schema=schema,
-            create_table=False,
-            create_partition=False,
-        )
+        # make sure target table exist
+        for i in range(10):
+            try:
+                self.get_odps_client().write_table(
+                    table_name,
+                    pd_dataframe,
+                    project=database,
+                    schema=schema,
+                    create_table=False,
+                    create_partition=False,
+                )
+                break
+            except NoSuchObject:
+                logger.info(f"Table {database}.{schema}.{table_name} does not exist, retrying...")
+                time.sleep(10)
+                continue

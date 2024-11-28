@@ -14,7 +14,11 @@ class MaxComputeColumn(Column):
     comment: str = ""
 
     TYPE_LABELS = {
-        "TEXT": "string",
+        "TEXT": "STRING",
+        "INTEGER": "INT",
+        "BOOL": "BOOLEAN",
+        "NUMERIC": "DECIMAL",
+        "REAL": "FLOAT",
     }
 
     @property
@@ -26,19 +30,48 @@ class MaxComputeColumn(Column):
 
     @classmethod
     def numeric_type(cls, dtype: str, precision: Any, scale: Any) -> str:
-        # MaxCompute makes life much harder if precision + scale are specified
-        # even if they're fed in here, just return the data type by itself
-        return dtype
+        return "DECIMAL({}, {})".format(precision, scale)
 
     def is_string(self) -> bool:
-        return self.dtype.lower() in [
-            "string" "text",
+        lower = self.dtype.lower()
+        if lower.startswith("char") or lower.startswith("varchar"):
+            return True
+        return lower in [
+            "string",
+            "text",
             "character varying",
             "character",
-            "char" "varchar",
+            "char",
+            "varchar",
         ]
 
-    def string_type(cls, size: int) -> str:
+    def is_integer(self) -> bool:
+        return self.dtype.lower() in [
+            # real types
+            "tinyint",
+            "smallint",
+            "integer",
+            "bigint",
+            "smallserial",
+            "serial",
+            "bigserial",
+            # aliases
+            "int",
+            "int2",
+            "int4",
+            "int8",
+            "serial2",
+            "serial4",
+            "serial8",
+        ]
+
+    def is_numeric(self) -> bool:
+        lower = self.dtype.lower()
+        if lower.startswith("decimal") or lower.startswith("numeric"):
+            return True
+        return lower in ["numeric", "decimal"]
+
+    def string_type(cls, size: int = 0) -> str:
         return "string"
 
     def can_expand_to(self: Self, other_column: Self) -> bool:
