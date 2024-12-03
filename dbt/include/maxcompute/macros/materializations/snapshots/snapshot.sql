@@ -14,7 +14,6 @@
 {%- endmacro %}
 
 
-
 {% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
     {% set temp_relation = make_temp_relation(target_relation) %}
 

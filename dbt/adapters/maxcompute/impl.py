@@ -443,6 +443,7 @@ class MaxComputeAdapter(SQLAdapter):
         pd_dataframe = pd.read_csv(
             file_path, delimiter=field_delimiter, parse_dates=timestamp_columns
         )
+        logger.debug(f"Load csv to table {database}.{schema}.{table_name}")
         # make sure target table exist
         for i in range(10):
             try:

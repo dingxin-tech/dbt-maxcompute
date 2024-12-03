@@ -12,7 +12,7 @@
     {%- set is_delta = is_transactional and primary_keys is not none and primary_keys|length > 0 -%}
 
     {% call statement('create_table', auto_begin=False) -%}
-        create table if not exists {{ relation.render() }} (
+        create table {{ relation.render() }} (
             {% set contract_config = config.get('contract') %}
             {% if contract_config.enforced and (not temporary) %}
                 {{ get_assert_columns_equivalent(sql) }}
@@ -57,11 +57,16 @@
     {{ c.name }} {{ c.dtype }}
     {% if primary_keys and c.name in  primary_keys -%}not null{%- endif %}
     {% if model_columns and c.name in  model_columns -%}
-       {{ "COMMENT" }} '{{ model_columns[c.name].description }}'
+       {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
     {%- endif %}
     {{ "," if not loop.last }}
     {% endfor %}
 {%- endmacro %}
+
+{% macro quote_and_escape(input_string) %}
+    {% set escaped_string = input_string | replace("'", "\\'") %}
+    '{{ escaped_string }}'
+{% endmacro %}
 
 -- Compared to get_table_columns_and_constraints, only the surrounding brackets are deleted
 {% macro get_table_columns_and_constraints_without_brackets() -%}
