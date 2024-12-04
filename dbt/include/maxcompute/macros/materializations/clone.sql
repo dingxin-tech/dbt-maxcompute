@@ -4,5 +4,8 @@
 
 
 {% macro maxcompute__create_or_replace_clone(this_relation, defer_relation) %}
-    clone table {{ this_relation.render() }} to {{ defer_relation.render() }} if exists overwrite;
+    {% call statement('drop_table', auto_begin=False) -%}
+        drop table if exists {{ this_relation.render() }};
+    {% endcall -%}
+    clone table {{ defer_relation.render() }} to {{ this_relation.render() }};
 {% endmacro %}
