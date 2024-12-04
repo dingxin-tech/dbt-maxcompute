@@ -82,8 +82,8 @@ class CursorWrapper(Cursor):
                 ):
                     if i == retry_times - 1:
                         raise e
-                    logger.warning(f"Retry because of {e}, retry times {i}")
-                    time.sleep(10)
+                    logger.warning(f"Retry because of {e}, retry times {i + 1}")
+                    time.sleep(15)
                     continue
                 else:
                     o = self.connection.odps

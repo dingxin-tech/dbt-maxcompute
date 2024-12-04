@@ -14,4 +14,5 @@ class TestPostgresShowLimit(BaseShowLimit):
 
 
 class TestShowDoesNotHandleDoubleLimit(BaseShowDoesNotHandleDoubleLimit):
+    DATABASE_ERROR_MESSAGE = "ODPS-0130161"
     pass
