@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Dict, Any
 
 from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
 from dbt.adapters.contracts.connection import Credentials, AdapterResponse
@@ -77,10 +76,6 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         logger.debug("Current instance id is " + cursor._instance.id)
         return AdapterResponse(_message="OK")
 
-    def set_query_header(self, query_header_context: Dict[str, Any]) -> None:
-        # no query header will better
-        pass
-
     @contextmanager
     def exception_handler(self, sql: str):
         try:
@@ -99,6 +94,14 @@ class MaxComputeConnectionManager(SQLConnectionManager):
 
     def cancel(self, connection):
         connection.handle.cancel()
+
+    def begin(self):
+        logger.debug("Trigger beginning transaction, actually do nothing...")
+
+    # FIXME: Sometimes the number of commits is greater than the number of begins.
+    #  It should be a problem with the micro, which can be reproduced through the test of dbt_show.
+    def commit(self):
+        logger.debug("Committing transaction, actually do nothing...")
 
     def add_begin_query(self):
         pass

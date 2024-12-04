@@ -59,12 +59,12 @@ class CursorWrapper(Cursor):
             result = re.sub(r"/\*[^+].*?\*/", "", input_string, flags=re.DOTALL)
             return result
 
-        operation = remove_comments(operation)
+        # operation = remove_comments(operation)
         parameters = param_normalization(parameters)
         operation = replace_sql_placeholders(operation, parameters)
 
-        # retry three times, each time wait for 10 seconds
-        retry_times = 3
+        # retry ten times, each time wait for 10 seconds
+        retry_times = 10
         for i in range(retry_times):
             try:
                 super().execute(operation)
@@ -78,11 +78,12 @@ class CursorWrapper(Cursor):
                     or e.code == "ODPS-0110061"
                     or e.code == "ODPS-0130131"
                     or e.code == "ODPS-0420111"
+                    or e.code == "ODPS-0130071"
                 ):
                     if i == retry_times - 1:
                         raise e
-                    logger.warning(f"Retry because of {e}, retry times {i}")
-                    time.sleep(10)
+                    logger.warning(f"Retry because of {e}, retry times {i + 1}")
+                    time.sleep(15)
                     continue
                 else:
                     o = self.connection.odps

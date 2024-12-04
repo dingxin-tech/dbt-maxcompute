@@ -82,6 +82,7 @@ class MaxComputeAdapter(SQLAdapter):
         conn = self.connections.get_thread_connection()
         return conn.handle.odps
 
+    @available.parse_none
     def get_odps_table_by_relation(self, relation: MaxComputeRelation, retry_times=1):
         # Sometimes the newly created table will be judged as not existing, so add retry to obtain it.
         for i in range(retry_times):
@@ -443,6 +444,7 @@ class MaxComputeAdapter(SQLAdapter):
         pd_dataframe = pd.read_csv(
             file_path, delimiter=field_delimiter, parse_dates=timestamp_columns
         )
+        logger.debug(f"Load csv to table {database}.{schema}.{table_name}")
         # make sure target table exist
         for i in range(10):
             try:
@@ -459,3 +461,57 @@ class MaxComputeAdapter(SQLAdapter):
                 logger.info(f"Table {database}.{schema}.{table_name} does not exist, retrying...")
                 time.sleep(10)
                 continue
+
+    ###
+    # Methods about grants
+    ###
+    @available
+    def standardize_grants_dict(self, grants_table: "agate.Table") -> dict:
+        """Translate the result of `show grants` (or equivalent) to match the
+        grants which a user would configure in their project.
+
+        Ideally, the SQL to show grants should also be filtering:
+        filter OUT any grants TO the current user/role (e.g. OWNERSHIP).
+        If that's not possible in SQL, it can be done in this method instead.
+
+        :param grants_table: An agate table containing the query result of
+            the SQL returned by get_show_grant_sql
+        :return: A standardized dictionary matching the `grants` config
+        :rtype: dict
+        """
+        grants_dict: Dict[str, List[str]] = {}
+        for row in grants_table:
+            grantee = row["grantee"]
+            privilege = row["privilege_type"]
+            if privilege in grants_dict.keys():
+                grants_dict[privilege].append(grantee)
+            else:
+                grants_dict.update({privilege: [grantee]})
+        return grants_dict
+
+    @available.parse_none
+    def run_security_sql(
+        self,
+        sql: str,
+    ) -> dict:
+        logger.info(f"Run security sql: {sql}")
+        o = self.get_odps_client()
+        data_dict = o.execute_security_query(sql)
+
+        normalized_dict: Dict[str, List[str]] = {}
+        if "ACL" in data_dict and data_dict["ACL"]:
+            for entry in data_dict["ACL"][""]:
+                if "Action" in entry and "Principal" in entry:
+                    for action in entry["Action"]:
+                        for principal in entry["Principal"]:
+                            # 从 Principal 中提取需要的部分
+                            principal_user = principal.split("/")[1].split("(")[
+                                0
+                            ]  # 获取 user/后的部分
+                            principal_user = principal_user.strip()  # 去掉空格
+                            normalized_dict[action.lower()] = normalized_dict.get(
+                                action.lower(), []
+                            ) + [principal_user]
+
+        logger.debug(f"Normalized dict: {normalized_dict}")
+        return normalized_dict
