@@ -1,6 +1,5 @@
 
 {% materialization incremental,  adapter='maxcompute' -%}
-
   -- relations
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
@@ -11,10 +10,25 @@
 
   -- configs
   {%- set unique_key = config.get('unique_key') -%}
-  {%- set unique_key_list = unique_key.split(',') if unique_key else [] -%}
+  {%- if unique_key is string -%}
+    {%- set unique_key_list = unique_key.split(',') -%}
+  {%- elif unique_key is iterable -%}
+    {%- set unique_key_list = unique_key -%}
+  {%- else -%}
+    {%- set unique_key_list = [] -%}
+  {%- endif -%}
   {%- set transaction_table = unique_key_list|length > 0 -%}
   {%- set full_refresh_mode = (should_full_refresh()  or existing_relation.is_view) -%}
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
+
+  {%- set default_incremental_strategy = 'append' -%}
+  {% if transaction_table %}
+    {%- set default_incremental_strategy = 'merge' -%}
+    {% if config.get('incremental_strategy')=='append' %}
+      {% do exceptions.raise_compiler_error('append strategy is not supported for incremental models with a unique key when using MaxCompute') %}
+    {% endif %}
+  {% endif %}
+  {% set incremental_strategy = config.get('incremental_strategy') or default_incremental_strategy %}
 
   -- the temp_ and backup_ relations should not already exist in the database; get_relation
   -- will return None in that case. Otherwise, we get a relation that we can drop
@@ -54,7 +68,6 @@
     {% endif %}
 
     {#-- Get the incremental_strategy, the macro to use for the strategy, and build the sql --#}
-    {% set incremental_strategy = config.get('incremental_strategy') or 'default' %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {% set strategy_sql_macro_func = adapter.get_incremental_strategy_macro(context, incremental_strategy) %}
     {% set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': temp_relation, 'unique_key': unique_key, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) %}

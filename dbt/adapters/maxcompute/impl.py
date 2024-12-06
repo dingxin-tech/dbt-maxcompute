@@ -457,7 +457,7 @@ class MaxComputeAdapter(SQLAdapter):
                     create_partition=False,
                 )
                 break
-            except NoSuchObject:
+            except ODPSError:
                 logger.info(f"Table {database}.{schema}.{table_name} does not exist, retrying...")
                 time.sleep(10)
                 continue
