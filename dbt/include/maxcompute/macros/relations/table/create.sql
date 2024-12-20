@@ -2,7 +2,9 @@
     {%- set is_transactional = config.get('transactional') or config.get('delta') -%}
     {%- set primary_keys = config.get('primary_keys') -%}
     {%- set delta_table_bucket_num = config.get('delta_table_bucket_num', 16)-%}
-    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num) }}
+    {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
+    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_by) }}
 {%- endmacro %}
 
 
