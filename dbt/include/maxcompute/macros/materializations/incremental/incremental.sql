@@ -53,9 +53,9 @@
   {% set to_drop = [] %}
 
   {% if existing_relation is none %}
-      {% set build_sql = create_table_as_internal(False, target_relation, sql, True, partition_by=partition_by) %}
+      {% set build_sql = create_table_as_internal(False, target_relation, sql, True, partition_config=partition_by) %}
   {% elif full_refresh_mode %}
-      {% set build_sql = create_table_as_internal(False, intermediate_relation, sql, True, partition_by=partition_by) %}
+      {% set build_sql = create_table_as_internal(False, intermediate_relation, sql, True, partition_config=partition_by) %}
       {% set need_swap = true %}
   {% else %}
     {% do run_query(get_create_table_as_sql(True, temp_relation, sql)) %}

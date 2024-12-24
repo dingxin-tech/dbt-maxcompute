@@ -3,12 +3,12 @@
     {%- set primary_keys = config.get('primary_keys') -%}
     {%- set delta_table_bucket_num = config.get('delta_table_bucket_num', 16)-%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
-    {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
-    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_by) }}
+    {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_config) }}
 {%- endmacro %}
 
 
-{% macro create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys=none, delta_table_bucket_num=16, partition_by=none) -%}
+{% macro create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys=none, delta_table_bucket_num=16, partition_config=none) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
     {{ sql_header if sql_header is not none }}
     {%- set is_delta = is_transactional and primary_keys is not none and primary_keys|length > 0 -%}
@@ -18,10 +18,10 @@
             {% set contract_config = config.get('contract') %}
             {% if contract_config.enforced and (not temporary) %}
                 {{ get_assert_columns_equivalent(sql) }}
-                {{ get_table_columns_and_constraints_without_brackets() }}
+                {{ get_table_columns_and_constraints_without_brackets(partition_config) }}
                 {%- set sql = get_select_subquery(sql) %}
             {%- else -%}
-                {{ get_table_columns(sql, primary_keys) }}
+                {{ get_table_columns(sql, primary_keys, partition_config) }}
             {%- endif -%}
             {% if is_delta -%}
                 ,primary key(
@@ -30,12 +30,8 @@
                 {%- endfor -%})
             {%- endif -%}
             )
-            {% if partition_by -%}
-                {%- if partition_by.auto_partition -%}
-                auto partitioned by (trunc_time(`{{ partition_by.field }}`, "{{ partition_by.granularity }}"))
-                {%- else -%}
-                partitioned by (`{{ partition_by.field }}`)
-                {%- endif -%}
+            {% if partition_config -%}
+                {{ partition_by(partition_config) }}
             {%- endif -%}
             {%- if is_transactional -%}
                 {%- if is_delta -%}
@@ -50,7 +46,11 @@
             ;
     {%- endcall -%}
 
-    insert into {{ relation.render() }} (
+    insert into {{ relation.render() }}
+    {% if partition_config and partition_config.fields|length > 0 and not partition_config.auto_partition() -%}
+        partition({{ partition_config.render(False) }})
+    {%- endif -%}
+    (
     {% for c in get_column_schema_from_query(sql) -%}
         `{{ c.name }}`{{ "," if not loop.last }}
     {% endfor %}
@@ -60,15 +60,18 @@
 {%- endmacro %}
 
 
-{% macro get_table_columns(sql, primary_keys=none) -%}
+{% macro get_table_columns(sql, primary_keys=none, partition_config=None) -%}
     {% set model_columns = model.columns %}
+    {% set partition_by_cols = [] if (partition_config is none or partition_config.auto_partition()) else partition_config.fields %}
     {% for c in get_column_schema_from_query(sql) -%}
-    {{ c.name }} {{ c.dtype }}
-    {% if primary_keys and c.name in  primary_keys -%}not null{%- endif %}
-    {% if model_columns and c.name in  model_columns -%}
-       {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
+    {% if c.name not in partition_by_cols -%}
+        {{ "," if not loop.first }}
+        {{ c.name }} {{ c.dtype }}
+        {% if primary_keys and c.name in  primary_keys -%}not null{%- endif %}
+        {% if model_columns and c.name in  model_columns -%}
+           {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
+        {%- endif %}
     {%- endif %}
-    {{ "," if not loop.last }}
     {% endfor %}
 {%- endmacro %}
 
@@ -78,9 +81,9 @@
 {% endmacro %}
 
 -- Compared to get_table_columns_and_constraints, only the surrounding brackets are deleted
-{% macro get_table_columns_and_constraints_without_brackets() -%}
+{% macro get_table_columns_and_constraints_without_brackets(partition_config=None) -%}
     {# loop through user_provided_columns to create DDL with data types and constraints #}
-    {%- set raw_column_constraints = adapter.render_raw_columns_constraints(raw_columns=model['columns']) -%}
+    {%- set raw_column_constraints = adapter.mc_render_raw_columns_constraints(raw_columns=model['columns'], partition_config=partition_config) -%}
     {%- set raw_model_constraints = adapter.render_raw_model_constraints(raw_constraints=model['constraints']) -%}
     {% for c in raw_column_constraints -%}
       {{ c }}{{ "," if not loop.last or raw_model_constraints }}

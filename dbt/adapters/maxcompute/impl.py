@@ -520,3 +520,26 @@ class MaxComputeAdapter(SQLAdapter):
     @available
     def parse_partition_by(self, raw_partition_by: Any) -> Optional[PartitionConfig]:
         return PartitionConfig.parse(raw_partition_by)
+
+    @available
+    @classmethod
+    def mc_render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]],
+                                          partition_config: Optional[PartitionConfig]) -> List:
+        rendered_column_constraints = []
+        partition_column = []
+        if partition_config and not partition_config.auto_partition():
+            partition_column = partition_config.fields
+
+        for v in raw_columns.values():
+            if v["name"] in partition_column:
+                continue
+            col_name = cls.quote(v["name"]) if v.get("quote") else v["name"]
+            rendered_column_constraint = [f"{col_name} {v['data_type']}"]
+            for con in v.get("constraints", None):
+                constraint = cls._parse_column_constraint(con)
+                c = cls.process_parsed_constraint(constraint, cls.render_column_constraint)
+                if c is not None:
+                    rendered_column_constraint.append(c)
+            rendered_column_constraints.append(" ".join(rendered_column_constraint))
+
+        return rendered_column_constraints

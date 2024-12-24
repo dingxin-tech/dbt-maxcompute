@@ -1,68 +1,71 @@
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Optional, List
 
 import dbt_common.exceptions
-from dbt.adapters.contracts.relation import RelationConfig
-from dbt_common.dataclass_schema import dbtClassMixin, ValidationError
-from odps.models.table import Table as MaxComputeTable
+from dbt_common.dataclass_schema import dbtClassMixin
 
 
 @dataclass
 class PartitionConfig(dbtClassMixin):
-    field: str
-    data_type: str = "string"
     granularity: str = "day"
     copy_partitions: bool = False
 
-    @classmethod
+    fields: List[str] = field(default_factory=list)
+    data_types: List[str] = field(default_factory=list)
+
     def auto_partition(self) -> bool:
-        return self.data_type in ["timestamp", "date", "datetime", "timestamp_ntz"]
+        for t in self.data_types:
+            if t.lower() in ["timestamp", "date", "datetime", "timestamp_ntz"]:
+                return True
+        return False
 
-    def render(self, alias: Optional[str] = None):
-        column: str = self.field
-        if alias:
-            column = f"{alias}.{column}"
-        return column
-
-    def render_wrapped(self, alias: Optional[str] = None):
-        """Wrap the partitioning column when time involved to ensure it is properly cast to matching time."""
-        # if data type is going to be truncated, no need to wrap
-        return self.render(alias)
+    def render(self, with_type: bool = True) -> str:
+        default_value = len(self.data_types) == 0
+        res = ""
+        for i, field in enumerate(self.fields):
+            if with_type:
+                if default_value:
+                    column = f"{field} string"
+                else:
+                    column = f"{field} {self.data_types[i]}"
+            else:
+                column = field
+            res += f"{column}, "
+        res = res[:-2]  # 去掉最后的逗号和空格
+        return res
 
     @classmethod
     def parse(cls, raw_partition_by) -> Optional["PartitionConfig"]:
         if raw_partition_by is None:
             return None
         try:
-            cls.validate(raw_partition_by)
-            return cls.from_dict(
-                {
-                    key: (value.lower() if isinstance(value, str) else value)
-                    for key, value in raw_partition_by.items()
-                }
-            )
-        except ValidationError as exc:
-            raise dbt_common.exceptions.base.DbtValidationError(
-                "Could not parse partition config"
-            ) from exc
+            new_dict = {}
+            for key, value in raw_partition_by.items():
+                if key in ['fields', 'data_types']:
+                    new_dict[key] = [item.strip() for item in value.split(',')]
+                else:
+                    new_dict[key] = value
+            res = cls.from_dict(new_dict)
+            res.post_validate()
+            return res
         except TypeError:
             raise dbt_common.exceptions.CompilationError(
                 f"Invalid partition_by config:\n"
                 f"  Got: {raw_partition_by}\n"
-                f'  Expected a dictionary with "field" and "data_type" keys'
+                f'  Expected a dictionary with "fields" and "data_types" keys'
             )
 
-    @classmethod
-    def parse_model_node(cls, relation_config: RelationConfig) -> Dict[str, Any]:
-        """
-        Parse model node into a raw config for `PartitionConfig.parse`
-        """
-        config_dict: Dict[str, Any] = relation_config.config.extra.get("partition_by")
-        return config_dict
-
-    @classmethod
-    def parse_mc_table(cls, table: MaxComputeTable) -> Dict[str, Any]:
-        """
-        Parse the MC Table object into a raw config for `PartitionConfig.parse`
-        """
-        return {}
+    def post_validate(self):
+        if 0 < len(self.data_types) != len(self.fields):
+            raise dbt_common.exceptions.DbtValidationError(
+                f"Invalid partition_by config:\n"
+                f"  Got: {self.fields}\n"
+                f"  Got: {self.data_types}\n"
+                f"  Expected the same number of fields and data types"
+            )
+        if self.auto_partition() and len(self.fields) > 1:
+            raise dbt_common.exceptions.DbtValidationError(
+                f"Invalid partition_by config:\n"
+                f"  Got: {self.fields}\n"
+                f"  Expected a single partition column for auto partitioning"
+            )
