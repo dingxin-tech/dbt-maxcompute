@@ -326,8 +326,10 @@ class MaxComputeAdapter(SQLAdapter):
             if not odps_table:
                 continue
 
-            if odps_table.is_virtual_view or odps_table.is_materialized_view:
+            if odps_table.is_virtual_view:
                 table_type = "VIEW"
+            elif odps_table.is_materialized_view:
+                table_type = "MATERIALIZED_VIEW"
             else:
                 table_type = "TABLE"
             table_comment = odps_table.comment

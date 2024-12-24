@@ -12,6 +12,8 @@ from dbt.adapters.maxcompute.relation_configs._policies import (
 )
 from dbt.adapters.contracts.relation import ComponentName, RelationConfig
 
+from dbt.adapters.maxcompute.utils import quote_ref
+
 if TYPE_CHECKING:
     # Indirectly imported via agate_helper, which is lazy loaded further downfile.
     # Used by mypy for earlier type hints.
@@ -54,7 +56,7 @@ class MaxComputeBaseRelationConfig(RelationConfigBase):
     def _render_part(cls, component: ComponentName, value: Optional[str]) -> Optional[str]:
         if cls.include_policy().get_part(component) and value:
             if cls.quote_policy().get_part(component):
-                return f'"{value}"'
+                return quote_ref(value)
             return value.lower()
         return None
 

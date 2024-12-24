@@ -13,9 +13,11 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
         {% if from_relation.is_table -%}
             ALTER TABLE {{ from_relation.render() }}
             RENAME TO {{ to_relation.identifier }};
-        {% else -%}
+        {% elif from_relation.is_view -%}
             ALTER VIEW {{ from_relation.render() }}
             RENAME TO {{ to_relation.identifier }};
+        {% else -%}
+            {{ get_rename_materialized_view_sql_2(from_relation, to_relation) }}
         {% endif -%}
 {% endmacro %}
 

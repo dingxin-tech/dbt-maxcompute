@@ -78,7 +78,6 @@ class CursorWrapper(Cursor):
                     or e.code == "ODPS-0110061"
                     or e.code == "ODPS-0130131"
                     or e.code == "ODPS-0420111"
-                    or e.code == "ODPS-0130071"
                 ):
                     if i == retry_times - 1:
                         raise e

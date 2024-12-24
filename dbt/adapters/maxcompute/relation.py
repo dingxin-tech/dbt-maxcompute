@@ -2,8 +2,10 @@ from dataclasses import dataclass, field
 from typing import FrozenSet, Optional, TypeVar
 
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
-from dbt.adapters.contracts.relation import RelationType, Path, Policy
+from dbt.adapters.contracts.relation import RelationType, Path, Policy, RelationConfig
 from odps.models import Table
+
+from dbt.adapters.maxcompute.relation_configs._materialized_view import MaxComputeMaterializedViewConfig
 
 Self = TypeVar("Self", bound="MaxComputeRelation")
 
@@ -40,6 +42,7 @@ class MaxComputeRelation(BaseRelation):
             {
                 RelationType.View,
                 RelationType.Table,
+                RelationType.MaterializedView,
             }
         )
     )
@@ -62,14 +65,24 @@ class MaxComputeRelation(BaseRelation):
         schema = table.get_schema()
         schema = schema.name if schema else "default"
 
-        is_view = table.is_virtual_view or table.is_materialized_view
+        table_type = RelationType.Table
+        if table.is_virtual_view:
+            table_type = RelationType.View
+        if table.is_materialized_view:
+            table_type = RelationType.MaterializedView
 
         return cls.create(
             database=table.project.name,
             schema=schema,
             identifier=table.name,
-            type=RelationType.View if is_view else RelationType.Table,
+            type=table_type,
         )
+
+    @classmethod
+    def materialized_view_from_relation_config(
+            cls, relation_config: RelationConfig
+    ) -> MaxComputeMaterializedViewConfig:
+        return MaxComputeMaterializedViewConfig.from_relation_config(relation_config)
 
 
 @dataclass(frozen=True, eq=False, repr=False)

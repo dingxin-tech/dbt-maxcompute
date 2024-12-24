@@ -1,10 +1,5 @@
-{% macro get_replace_materialized_view_sql(relation, sql) %}
-    {{- adapter.dispatch('get_replace_materialized_view_sql', 'dbt')(relation, sql) -}}
-{% endmacro %}
 
-
-{% macro default__get_replace_materialized_view_sql(relation, sql) %}
-    {{ exceptions.raise_compiler_error(
-        "`get_replace_materialized_view_sql` has not been implemented for this adapter."
-    ) }}
+{% macro maxcompute__get_replace_materialized_view_sql(relation, sql) %}
+    {{ drop_materialized_view(relation) }}
+    {{ get_create_materialized_view_as_sql(relation, sql) }}
 {% endmacro %}

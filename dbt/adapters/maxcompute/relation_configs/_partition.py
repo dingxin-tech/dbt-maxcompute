@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 import dbt_common.exceptions
+from dbt.adapters.contracts.relation import RelationConfig
 from dbt_common.dataclass_schema import dbtClassMixin
 
 
@@ -54,6 +55,18 @@ class PartitionConfig(dbtClassMixin):
                 f"  Got: {raw_partition_by}\n"
                 f'  Expected a dictionary with "fields" and "data_types" keys'
             )
+
+    @classmethod
+    def parse_model_node(cls, relation_config: RelationConfig) -> Dict[str, Any]:
+        """
+        Parse model node into a raw config for `PartitionConfig.parse`
+
+        - Note:
+            This doesn't currently collect `time_ingestion_partitioning` and `copy_partitions`
+            because this was built for materialized views, which do not support those settings.
+        """
+        config_dict: Dict[str, Any] = relation_config.config.extra.get("partition_by")
+        return config_dict
 
     def post_validate(self):
         if 0 < len(self.data_types) != len(self.fields):

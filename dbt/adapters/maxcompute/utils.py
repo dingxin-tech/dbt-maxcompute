@@ -4,6 +4,16 @@ import functools
 from odps.errors import ODPSError, NoSuchObject
 
 
+def quote_string(value: str) -> str:
+    value.replace('\'', "\\'")
+    return f"'{value}'"
+
+
+def quote_ref(value: str) -> str:
+    value.replace('`', "``")
+    return f"`{value}`"
+
+
 def is_schema_not_found(e: ODPSError) -> bool:
     if isinstance(e, NoSuchObject):
         return True
