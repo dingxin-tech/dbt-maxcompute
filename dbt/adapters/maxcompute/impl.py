@@ -525,8 +525,9 @@ class MaxComputeAdapter(SQLAdapter):
 
     @available
     @classmethod
-    def mc_render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]],
-                                          partition_config: Optional[PartitionConfig]) -> List:
+    def mc_render_raw_columns_constraints(
+        cls, raw_columns: Dict[str, Dict[str, Any]], partition_config: Optional[PartitionConfig]
+    ) -> List:
         rendered_column_constraints = []
         partition_column = []
         if partition_config and not partition_config.auto_partition():

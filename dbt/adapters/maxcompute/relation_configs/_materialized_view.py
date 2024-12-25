@@ -52,8 +52,16 @@ class MaxComputeMaterializedViewConfig(MaxComputeBaseRelationConfig):
             "schema": relation_config.schema,
             "project": relation_config.database,
         }
-        items = ["lifecycle", "build_deferred", "columns", "column_comment", "disable_rewrite", "table_comment",
-                 "partition_by", "tblProperties"]
+        items = [
+            "lifecycle",
+            "build_deferred",
+            "columns",
+            "column_comment",
+            "disable_rewrite",
+            "table_comment",
+            "partition_by",
+            "tblProperties",
+        ]
 
         if relation_config:
             for item in items:
@@ -78,7 +86,9 @@ class MaxComputeMaterializedViewConfig(MaxComputeBaseRelationConfig):
             sql += "("
             for column in self.columns:
                 if self.column_comment and column in self.column_comment:
-                    sql += f"{quote_ref(column)} COMMENT {quote_string(self.column_comment[column])}"
+                    sql += (
+                        f"{quote_ref(column)} COMMENT {quote_string(self.column_comment[column])}"
+                    )
                 else:
                     sql += f"{quote_ref(column)}"
                 sql += ", "
@@ -93,7 +103,7 @@ class MaxComputeMaterializedViewConfig(MaxComputeBaseRelationConfig):
         if self.tblProperties and len(self.tblProperties) > 0:
             sql += "TBLPROPERTIES( "
             for k, v in self.tblProperties.items():
-                sql += f"\"{k}\"=\"{v}\", "
+                sql += f'"{k}"="{v}", '
             sql = sql[:-2]
             sql += ")\n"
         return sql

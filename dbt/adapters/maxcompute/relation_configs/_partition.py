@@ -23,14 +23,14 @@ class PartitionConfig(dbtClassMixin):
     def render(self, with_type: bool = True) -> str:
         default_value = len(self.data_types) == 0
         res = ""
-        for i, field in enumerate(self.fields):
+        for i, field_name in enumerate(self.fields):
             if with_type:
                 if default_value:
-                    column = f"{field} string"
+                    column = f"{field_name} string"
                 else:
-                    column = f"{field} {self.data_types[i]}"
+                    column = f"{field_name} {self.data_types[i]}"
             else:
-                column = field
+                column = field_name
             res += f"{column}, "
         res = res[:-2]  # 去掉最后的逗号和空格
         return res
@@ -42,8 +42,8 @@ class PartitionConfig(dbtClassMixin):
         try:
             new_dict = {}
             for key, value in raw_partition_by.items():
-                if key in ['fields', 'data_types']:
-                    new_dict[key] = [item.strip() for item in value.split(',')]
+                if key in ["fields", "data_types"]:
+                    new_dict[key] = [item.strip() for item in value.split(",")]
                 else:
                     new_dict[key] = value
             res = cls.from_dict(new_dict)

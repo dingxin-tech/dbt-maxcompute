@@ -62,7 +62,7 @@ class TestMaterializedViewMaxCompute(MaterializedViewBasic):
         pass
 
     def test_materialized_view_only_updates_after_refresh(
-            self, project, my_materialized_view, my_seed
+        self, project, my_materialized_view, my_seed
     ):
         # poll database
         table_start = self.query_row_count(project, my_seed)

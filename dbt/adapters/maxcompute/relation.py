@@ -5,7 +5,9 @@ from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.contracts.relation import RelationType, Path, Policy, RelationConfig
 from odps.models import Table
 
-from dbt.adapters.maxcompute.relation_configs._materialized_view import MaxComputeMaterializedViewConfig
+from dbt.adapters.maxcompute.relation_configs._materialized_view import (
+    MaxComputeMaterializedViewConfig,
+)
 
 Self = TypeVar("Self", bound="MaxComputeRelation")
 
@@ -80,7 +82,7 @@ class MaxComputeRelation(BaseRelation):
 
     @classmethod
     def materialized_view_from_relation_config(
-            cls, relation_config: RelationConfig
+        cls, relation_config: RelationConfig
     ) -> MaxComputeMaterializedViewConfig:
         return MaxComputeMaterializedViewConfig.from_relation_config(relation_config)
 
