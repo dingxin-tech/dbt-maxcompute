@@ -26,62 +26,46 @@
 {% macro mc_insert_overwrite_sql(
     tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
 ) %}
-  {% if partitions is not none and partitions != [] %} {# static #}
-      {{ mc_static_insert_overwrite_sql(tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists) }}
-  {% else %} {# dynamic #}
-      {{ mc_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists) }}
-  {% endif %}
-{% endmacro %}
-
-{% macro mc_static_insert_overwrite_sql(
-    tmp_relation, target_relation, sql, partition_by, partitions, dest_columns, tmp_relation_exists
-) %}
-
-      {% set predicate -%}
-          {{ partition_by.render(False) }} in ({{ partitions | join (', ') }})
-      {%- endset %}
-
-      {%- set source_sql -%}
-        (
-          {% if tmp_relation_exists -%}
-            select * from {{ tmp_relation }}
-          {%- else -%}
-            {{sql}}
-          {%- endif %}
-        )
-      {%- endset -%}
-
-      {%- call statement('main') -%}
-        {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate], include_sql_header = not tmp_relation_exists) }};
-      {%- endcall -%}
-
-      {%- if tmp_relation_exists -%}
-      -- 2. clean up the temp table
-        drop table if exists {{ tmp_relation }};
-      {%- endif -%}
-{% endmacro %}
-
-{% macro mc_dynamic_insert_overwrite_sql(tmp_relation, target_relation, sql, unique_key, partition_by, dest_columns, tmp_relation_exists) %}
-      {% set predicate -%}
-          {{partition_by.render(False)}} in (select distinct {{partition_by.render(False)}} from {{ tmp_relation }})
-      {%- endset %}
-
-      {%- set source_sql -%}
-      (
-        select * from {{ tmp_relation }}
-      )
-      {%- endset -%}
       {% if not tmp_relation_exists %}
         {%- call statement('create_tmp_relation') -%}
           {{ create_table_as_internal(True, tmp_relation, sql, True, partition_config=partition_by) }}
         {%- endcall -%}
-      {% else %}
-        -- 1. temp table already exists, we used it to check for schema changes
       {% endif %}
       -- 3. run the merge statement
       {%- call statement('main') -%}
-        {{ get_insert_overwrite_merge_sql(target_relation, source_sql, dest_columns, [predicate]) }};
+      {% if partitions is not none and partitions != [] %} {# static #}
+          {{ mc_static_insert_overwrite_merge_sql(target_relation, tmp_relation, partition_by, partitions) }}
+      {% else %} {# dynamic #}
+          {{ mc_dynamic_insert_overwrite_sql(target_relation, tmp_relation, partition_by) }}
+      {% endif %}
       {%- endcall -%}
       -- 4. clean up the temp table
       drop table if exists {{ tmp_relation }}
+{% endmacro %}
+
+{% macro mc_static_insert_overwrite_merge_sql(target, source, partition_by, partitions) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {{ sql_header if sql_header is not none and include_sql_header }}
+
+    {%- call statement('drop_static_partition') -%}
+    DELETE FROM {{ target }}
+    WHERE {{ partition_by.render(False) }} in ({{ partitions | join(',') }})
+    {%- endcall -%}
+
+    INSERT OVERWRITE TABLE {{ target }} PARTITION({{ partition_by.render(False) }})
+    (
+    SELECT *
+    FROM {{ source }}
+    WHERE {{ partition_by.render(False) }} in ({{ partitions | join(',') }})
+    )
+{% endmacro %}
+
+{% macro mc_dynamic_insert_overwrite_sql(target, source, partition_by) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+    {{ sql_header if sql_header is not none and include_sql_header }}
+    INSERT OVERWRITE TABLE {{ target }} PARTITION({{ partition_by.render(False) }})
+    (
+    SELECT *
+    FROM {{ source }}
+    )
 {% endmacro %}

@@ -1,6 +1,6 @@
 {% materialization raw,  adapter='maxcompute' -%}
+  {{ adapter.run_raw_sql(sql, config) }}
   {% call statement("main") %}
-      {{ sql }}
   {% endcall %}
   {{ return({'relations': []}) }}
 {%- endmaterialization %}
