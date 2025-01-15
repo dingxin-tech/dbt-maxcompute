@@ -20,7 +20,6 @@ from dbt.adapters.contracts.macros import MacroResolverProtocol
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
-from dbt.context.providers import RuntimeConfigObject
 from dbt_common.contracts.constraints import ConstraintType
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import AttrDict
@@ -557,7 +556,7 @@ class MaxComputeAdapter(SQLAdapter):
         return rendered_column_constraints
 
     @available
-    def run_raw_sql(self, sql: str, configs: RuntimeConfigObject) -> None:
+    def run_raw_sql(self, sql: str, configs: Any) -> None:
         hints = {}
         default_schema = None
         if configs is not None:

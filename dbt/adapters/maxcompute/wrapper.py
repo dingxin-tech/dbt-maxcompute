@@ -62,20 +62,21 @@ class CursorWrapper(Cursor):
         # operation = remove_comments(operation)
         parameters = param_normalization(parameters)
         operation = replace_sql_placeholders(operation, parameters)
+
         def parse_settings(sql):
             properties = {}
             index = 0
 
             while True:
-                end = sql.find(';', index)
+                end = sql.find(";", index)
                 if end == -1:
                     break
                 s = sql[index:end]
-                if re.match(r'(?i)^\s*SET\s+.*=.*?\s*$', s):
+                if re.match(r"(?i)^\s*SET\s+.*=.*?\s*$", s):
                     # handle one setting
-                    i = s.lower().find('set')
-                    pair_string = s[i + 3:]
-                    pair = pair_string.split('=')
+                    i = s.lower().find("set")
+                    pair_string = s[i + 3 :]
+                    pair = pair_string.split("=")
                     properties[pair[0].strip()] = pair[1].strip()
                     index = end + 1
                 else:
