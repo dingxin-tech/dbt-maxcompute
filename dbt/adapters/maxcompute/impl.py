@@ -561,6 +561,9 @@ class MaxComputeAdapter(SQLAdapter):
         default_schema = None
         if configs is not None:
             default_schema = configs.get("schema")
+            if default_schema is not None:
+                client_schema = self.get_odps_client().schema
+                default_schema = f"{client_schema}_{default_schema.strip()}"
             sql_hints = configs.get("sql_hints")
             if sql_hints:
                 hints.update(sql_hints)
