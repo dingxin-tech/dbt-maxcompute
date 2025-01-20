@@ -13,8 +13,6 @@ class ConnectionWrapper(Connection):
         return CursorWrapper(
             self,
             *args,
-            use_sqa=self._use_sqa,
-            fallback_policy=self._fallback_policy,
             hints=self._hints,
             **kwargs,
         )
