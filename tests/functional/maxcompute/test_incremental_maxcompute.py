@@ -22,7 +22,7 @@ models__sql = """
     materialized='incremental',
     partition_by={"fields": "some_date", "data_types": "timestamp"},
     partitions=["TIMESTAMP'2024-10-10 00:00:00'", "TIMESTAMP'2025-01-01 00:00:00'"],
-    incremental_strategy='bq_insert_overwrite'
+    incremental_strategy='insert_overwrite'
 ) }}
 select * from {{ source('raw', 'seed') }}
 {% if is_incremental() %}

@@ -3,14 +3,14 @@
 ) %}
     {% if partition_by is none %}
       {% set missing_partition_msg -%}
-      The 'bq_insert_overwrite' strategy requires the `partition_by` config.
+      The 'insert_overwrite' strategy requires the `partition_by` config.
       {%- endset %}
       {% do exceptions.raise_compiler_error(missing_partition_msg) %}
     {% endif %}
 
     {% if partition_by.fields|length != 1 %}
       {% set missing_partition_msg -%}
-      The 'bq_insert_overwrite' strategy requires the `partition_by` config.
+      The 'insert_overwrite' strategy requires the `partition_by` config.
       {%- endset %}
       {% do exceptions.raise_compiler_error(missing_partition_msg) %}
     {% endif %}

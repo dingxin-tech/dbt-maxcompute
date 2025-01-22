@@ -106,11 +106,11 @@
 {% macro mc_generate_incremental_build_sql(
     strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_predicates
 ) %}
-  {% if strategy == 'bq_insert_overwrite' %}
+  {% if strategy == 'insert_overwrite' %}
     {% set build_sql = mc_generate_incremental_insert_overwrite_build_sql(
         tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}
-  {% elif strategy == 'bq_microbatch' %}
+  {% elif strategy == 'microbatch' %}
     {% set build_sql = mc_generate_microbatch_build_sql(
         tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
     ) %}
