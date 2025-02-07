@@ -1,42 +1,15 @@
 from contextlib import contextmanager
-from dataclasses import dataclass
 
-from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
-from dbt.adapters.contracts.connection import Credentials, AdapterResponse
-
-from dbt.adapters.sql import SQLConnectionManager
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.events.logging import AdapterLogger
-
-from odps import ODPS, options
+from dbt.adapters.sql import SQLConnectionManager
+from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
+from odps import options
 
 from dbt.adapters.maxcompute.context import GLOBAL_SQL_HINTS
 from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
-
-
-@dataclass
-class MaxComputeCredentials(Credentials):
-    endpoint: str
-    accessId: str
-    accessKey: str
-
-    _ALIASES = {
-        "project": "database",
-        "ak": "accessId",
-        "sk": "accessKey",
-    }
-
-    @property
-    def type(self):
-        return "maxcompute"
-
-    @property
-    def unique_field(self):
-        return self.endpoint + "_" + self.database
-
-    def _connection_keys(self):
-        return ("project", "database", "schema", "endpoint")
 
 
 class MaxComputeConnectionManager(SQLConnectionManager):
@@ -49,14 +22,7 @@ class MaxComputeConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = connection.credentials
-
-        o = ODPS(
-            credentials.accessId,
-            credentials.accessKey,
-            project=credentials.database,
-            endpoint=credentials.endpoint,
-        )
-        o.schema = credentials.schema
+        o = credentials.odps()
         # always use UTC timezone
         options.local_timezone = False
 
