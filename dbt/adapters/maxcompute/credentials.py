@@ -46,6 +46,8 @@ class MaxComputeCredentials(Credentials):
         "ak": "access_key_id",
         "sk": "access_key_secret",
         "sts": "security_token",
+        "accessId": "access_key_id",
+        "accessKey": "access_key_secret",
     }
 
     @property

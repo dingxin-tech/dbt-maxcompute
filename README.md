@@ -67,20 +67,24 @@ jaffle_shop: # this needs to match the profile in your dbt_project.yml file
       project: dbt-example # Replace this with your project name
       schema: default # Replace this with schema name, e.g. dbt_bilbo
       endpoint: http://service.cn-shanghai.maxcompute.aliyun.com/api # Replace this with your maxcompute endpoint
-      accessId: XXX # Replace this with your accessId(ak)
-      accessKey: XXX # Replace this with your accessKey(sk)
+      auth_type: access_key
+      access_key_id: XXX # Replace this with your accessId(ak)
+      access_key_secret: XXX # Replace this with your accessKey(sk)
 ```
 
 Currently we support the following parameters：
 
-| **Field**   | **Description**                                                                                    | **Default Value**       |
-|-------------|----------------------------------------------------------------------------------------------------|-------------------------|
-| `type`      | Specifies the type of database connection; must be set to "maxcompute" for MaxCompute connections. | `"maxcompute"`          |
-| `project`   | The name of your MaxCompute project.                                                               | N/A (Must be specified) |
-| `endpoint`  | The endpoint URL for connecting to MaxCompute.                                                     | N/A (Must be specified) |
-| `accessId`  | The Access ID for authentication with MaxCompute.                                                  | N/A (Must be specified) |
-| `accessKey` | The Access Key for authentication with MaxCompute.                                                 | N/A (Must be specified) |
-| `schema`    | The namespace schema that the models will use in MaxCompute.                                       | N/A (Must be specified) |
+| **Field**           | **Description**                                                                                    | **Default Value**       |
+|---------------------|----------------------------------------------------------------------------------------------------|-------------------------|
+| `type`              | Specifies the type of database connection; must be set to "maxcompute" for MaxCompute connections. | `"maxcompute"`          |
+| `project`           | The name of your MaxCompute project.                                                               | N/A (Must be specified) |
+| `endpoint`          | The endpoint URL for connecting to MaxCompute.                                                     | N/A (Must be specified) |
+| `schema`            | The namespace schema that the models will use in MaxCompute.                                       | N/A (Must be specified) |
+| `auth_type`         | Authentication type for accessing MaxCompute                                                       | `"access_key"`          |
+| `access_key_id`     | The Access ID for authentication with MaxCompute.                                                  | N/A                     |
+| `access_key_secret` | The Access Key for authentication with MaxCompute.                                                 | N/A                     |
+| other auth type     | such as STS, see [Authentication Configuration](docs/authentication.md)                            | N/A                     |
+
 
 **Notes**: The fields marked as "N/A (Must be specified)" indicate that these values are required and do not have
 default values.
