@@ -136,9 +136,15 @@ class MaxComputeAdapter(SQLAdapter):
             self.cache_dropped(relation)
         if relation.table is None:
             return
-        self.get_odps_client().delete_table(
-            relation.identifier, relation.project, True, relation.schema
-        )
+        logger.debug(f"Dropping relation {relation.render()}")
+        if relation.is_view or relation.is_materialized_view:
+            self.get_odps_client().delete_view(
+                relation.identifier, relation.project, True, relation.schema
+            )
+        else:
+            self.get_odps_client().delete_table(
+                relation.identifier, relation.project, True, relation.schema
+            )
 
     def truncate_relation(self, relation: MaxComputeRelation) -> None:
         # from_relation type maybe wrong, here is a workaround.
