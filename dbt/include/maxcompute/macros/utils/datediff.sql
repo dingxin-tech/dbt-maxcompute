@@ -3,7 +3,7 @@
 {% macro maxcompute__datediff(first_date, second_date, datepart) %}
     {% set datepart = datepart.lower() %}
 
-    {%- if datepart in ['day', 'month', 'year'] -%}
+    {%- if datepart in ['day', 'month', 'year', 'microsecond', 'isoweek', 'week', 'weekday'] -%}
         datediff({{second_date}}, {{first_date}}, '{{datepart}}')
     {%- elif datepart == 'week' -%}
         case when datediff({{first_date}}, {{second_date}}) < 0

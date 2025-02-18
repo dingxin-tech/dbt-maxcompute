@@ -1,6 +1,6 @@
 {% macro maxcompute__dateadd(datepart, interval, from_date_or_timestamp) %}
     {% set datepart = datepart.lower() %}
-    {%- if datepart in ['day', 'month', 'year'] %}
+    {%- if datepart in ['day', 'month', 'year', 'millisecond', 'microsecond'] %}
        dateadd({{ from_date_or_timestamp }}, {{ interval }}, '{{ datepart }}')
     {%- elif datepart == 'hour' -%}
        dateadd(cast({{ from_date_or_timestamp }} as {{ dbt.type_timestamp() }}), {{ interval }}, '{{ datepart }}')

@@ -1,7 +1,7 @@
 -- https://help.aliyun.com/zh/maxcompute/user-guide/datetrunc
 {% macro maxcompute__date_trunc(datepart, date) -%}
     {% set datepart = datepart.lower() %}
-    {%- if datepart in ['day', 'month', 'year', 'hour'] %}
+    {%- if datepart in ['day', 'month', 'year', 'hour', 'quarter', 'isoweek', 'week', 'weekday'] %}
         datetrunc({{date}}, '{{datepart}}')
     {%- elif datepart in ['minute', 'second'] -%}
         {%- set diviser -%}

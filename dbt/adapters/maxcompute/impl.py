@@ -392,8 +392,6 @@ class MaxComputeAdapter(SQLAdapter):
         # use timestamp but not timestamp_ntz because there is a problem with HashJoin for TIMESTAMP_NTZ type.
         return "timestamp"
 
-    # TODO: standardize_grants_dict method may also be overridden
-
     @available.parse(lambda *a, **k: [])
     def get_column_schema_from_query(self, sql: str) -> List[MaxComputeColumn]:
         """Get a list of the Columns with names and data types from the given sql."""
