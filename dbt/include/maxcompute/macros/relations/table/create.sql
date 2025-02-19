@@ -63,14 +63,17 @@
 {% macro get_table_columns(sql, primary_keys=none, partition_config=None) -%}
     {% set model_columns = model.columns %}
     {% set partition_by_cols = [] if (partition_config is none or partition_config.auto_partition()) else partition_config.fields %}
+    {% set first_column = true %}
+
     {% for c in get_column_schema_from_query(sql) -%}
     {% if c.name not in partition_by_cols -%}
-        {{ "," if not loop.first }}
+        {% if not first_column %},{% endif %}
         {{ c.name }} {{ c.dtype }}
         {% if primary_keys and c.name in  primary_keys -%}not null{%- endif %}
         {% if model_columns and c.name in  model_columns -%}
            {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
         {%- endif %}
+        {% set first_column = false %}
     {%- endif %}
     {% endfor %}
 {%- endmacro %}
