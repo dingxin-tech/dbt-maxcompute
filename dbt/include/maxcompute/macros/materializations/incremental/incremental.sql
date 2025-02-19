@@ -3,6 +3,7 @@
   {%- set raw_partition_by = config.get('partition_by', none) -%}
   {%- set partition_by = adapter.parse_partition_by(raw_partition_by) -%}
   {%- set partitions = config.get('partitions', none) -%}
+  {%- set lifecycle = config.get('lifecycle', none) -%}
   {%- set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) -%}
 
   {%- set cluster_by = config.get('cluster_by', none) -%}
@@ -50,13 +51,13 @@
 
   {% if existing_relation is none %}
     {%- call statement('main') -%}
-        {{ create_table_as_internal(False, target_relation, sql, True, partition_config=partition_by) }}
+        {{ create_table_as_internal(False, target_relation, sql, True, partition_config=partition_by, lifecycle=lifecycle) }}
     {%- endcall -%}
   {% elif full_refresh_mode %}
       {% do log("Hard refreshing " ~ existing_relation) %}
       {{ adapter.drop_relation(existing_relation) }}
       {%- call statement('main') -%}
-        {{ create_table_as_internal(False, target_relation, sql, True, partition_config=partition_by) }}
+        {{ create_table_as_internal(False, target_relation, sql, True, partition_config=partition_by, lifecycle=lifecycle) }}
       {%- endcall -%}
   {% else %}
     {% set temp_relation_exists = false %}

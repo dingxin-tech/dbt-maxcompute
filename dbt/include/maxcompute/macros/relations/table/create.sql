@@ -3,12 +3,13 @@
     {%- set primary_keys = config.get('primary_keys') -%}
     {%- set delta_table_bucket_num = config.get('delta_table_bucket_num', 16)-%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
+    {%- set lifecycle = config.get('lifecycle', none) -%}
     {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
-    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_config) }}
+    {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_config, lifecycle) }}
 {%- endmacro %}
 
 
-{% macro create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys=none, delta_table_bucket_num=16, partition_config=none) -%}
+{% macro create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys=none, delta_table_bucket_num=16, partition_config=none, lifecycle=none) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
     {{ sql_header if sql_header is not none }}
     {%- set is_delta = is_transactional and primary_keys is not none and primary_keys|length > 0 -%}
@@ -40,7 +41,9 @@
                     tblproperties("transactional"="true")
                 {%- endif -%}
             {%- endif -%}
-            {%- if temporary %}
+            {%- if lifecycle %}
+                LIFECYCLE {{ lifecycle }}
+            {%- elif temporary %}
                 LIFECYCLE 1
             {%- endif %}
             ;
@@ -63,17 +66,17 @@
 {% macro get_table_columns(sql, primary_keys=none, partition_config=None) -%}
     {% set model_columns = model.columns %}
     {% set partition_by_cols = [] if (partition_config is none or partition_config.auto_partition()) else partition_config.fields %}
-    {% set first_column = true %}
+    {% set ns = namespace(needs_comma=false) %}  {# 初始化命名空间变量 #}
 
     {% for c in get_column_schema_from_query(sql) -%}
     {% if c.name not in partition_by_cols -%}
-        {% if not first_column %},{% endif %}
-        {{ c.name }} {{ c.dtype }}
+        {{- "," if ns.needs_comma -}}  {# 根据命名空间变量判断逗号 #}
+        {{- c.name }} {{ c.dtype -}}
         {% if primary_keys and c.name in  primary_keys -%}not null{%- endif %}
         {% if model_columns and c.name in  model_columns -%}
            {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
         {%- endif %}
-        {% set first_column = false %}
+        {% set ns.needs_comma = true %}  {# 标记后续列需要逗号 #}
     {%- endif %}
     {% endfor %}
 {%- endmacro %}
