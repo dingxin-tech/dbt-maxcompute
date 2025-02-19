@@ -1,6 +1,8 @@
+from datetime import datetime
 from io import StringIO
 
 import odps
+import pytz
 import yaml
 from odps import ODPS, options
 import pandas as pd
@@ -40,6 +42,21 @@ class TestTimestamp(object):
         with instance.open_reader() as reader:
             for record in reader:  # iterate to handle result with schema
                 print(record)
+
+    def test_freshness(self):
+        odps = self.get_test_odps_client()
+        from odps import options
+
+        options.local_timezone = False
+
+        max_loaded_at = odps.get_table("timestamp_ntz_test").last_data_modified_time
+        max_loaded_at = max_loaded_at.replace(tzinfo=pytz.UTC)  # 关键修复
+
+        snapshot = datetime.now(tz=pytz.UTC)
+
+        print(
+            f"max_loaded_at={max_loaded_at}, snapshotted_at={snapshot}, age={(snapshot - max_loaded_at).total_seconds()}"
+        )
 
     def get_test_odps_client(self) -> odps.ODPS:
         with open(

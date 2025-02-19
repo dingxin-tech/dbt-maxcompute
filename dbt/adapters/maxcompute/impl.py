@@ -1,13 +1,16 @@
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from functools import lru_cache
 from multiprocessing.context import SpawnContext
 from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple
 
 import agate
 import pandas as pd
+import pytz
 from agate import Table
 from dbt.adapters.base import ConstraintSupport, available
+from dbt.adapters.base.impl import FreshnessResponse
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.capability import (
     CapabilityDict,
@@ -435,6 +438,23 @@ class MaxComputeAdapter(SQLAdapter):
             "insert_overwrite",
             "microbatch",
         ]
+
+    def calculate_freshness_from_metadata(
+        self,
+        source: MaxComputeRelation,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
+    ) -> Tuple[Optional[AdapterResponse], FreshnessResponse]:
+
+        table = self.get_odps_table_by_relation(source)
+        max_loaded_at = table.last_data_modified_time
+        max_loaded_at = max_loaded_at.replace(tzinfo=pytz.UTC)
+        snapshot = datetime.now(tz=pytz.UTC)
+        freshness = FreshnessResponse(
+            max_loaded_at=max_loaded_at,
+            snapshotted_at=snapshot,
+            age=(snapshot - max_loaded_at).total_seconds(),
+        )
+        return None, freshness
 
     @available.parse_none
     def load_dataframe(
