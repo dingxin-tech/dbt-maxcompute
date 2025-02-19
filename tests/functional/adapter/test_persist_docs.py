@@ -15,6 +15,10 @@ select 2 as id, 'Bob' as name
 """
 
 
+class TestPersistDocsToView(BasePersistDocs):
+    pass
+
+
 # Note: Not support persist docs to view.
 class TestPersistDocsRedshift(BasePersistDocs):
     @pytest.fixture(scope="class")

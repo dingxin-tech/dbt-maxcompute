@@ -32,7 +32,7 @@ from dbt.adapters.maxcompute.relation import MaxComputeRelation
 from dbt.adapters.events.logging import AdapterLogger
 
 from dbt.adapters.maxcompute.relation_configs._partition import PartitionConfig
-from dbt.adapters.maxcompute.utils import is_schema_not_found
+from dbt.adapters.maxcompute.utils import is_schema_not_found, quote_string
 
 logger = AdapterLogger("MaxCompute")
 
@@ -569,4 +569,24 @@ class MaxComputeAdapter(SQLAdapter):
             sql_hints = configs.get("sql_hints")
             if sql_hints:
                 hints.update(sql_hints)
-        self.get_odps_client().execute_sql(sql=sql, hints=hints, default_schema=default_schema)
+        inst = self.get_odps_client().execute_sql(
+            sql=sql, hints=hints, default_schema=default_schema
+        )
+        logger.debug(f"Run raw sql: {sql}, instanceId: {inst.id}")
+
+    @available
+    def add_comment(self, relation: MaxComputeRelation, comment: str) -> str:
+        """
+        Add comment to a relation.
+        """
+        if relation.is_table:
+            sql = f"ALTER TABLE {relation.database}.{relation.schema}.{relation.identifier} SET COMMENT {quote_string(comment)};"
+            self.run_raw_sql(sql, None)
+        if relation.is_view:
+            view_text = self.get_odps_table_by_relation(relation).view_text
+
+            sql = f"CREATE OR REPLACE VIEW {relation.database}.{relation.schema}.{relation.identifier} COMMENT {quote_string(comment)} AS {view_text};"
+            self.run_raw_sql(sql, None)
+        if relation.is_materialized_view:
+            raise DbtRuntimeError("Unsupported set comment to materialized view. ")
+        return ""

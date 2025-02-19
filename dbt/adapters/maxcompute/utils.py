@@ -5,12 +5,12 @@ from odps.errors import ODPSError, NoSuchObject
 
 
 def quote_string(value: str) -> str:
-    value.replace("'", "\\'")
+    value = value.replace("'", "\\'")
     return f"'{value}'"
 
 
 def quote_ref(value: str) -> str:
-    value.replace("`", "``")
+    value = value.replace("`", "``")
     return f"`{value}`"
 
 
