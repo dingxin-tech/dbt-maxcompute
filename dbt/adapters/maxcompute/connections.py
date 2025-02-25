@@ -25,6 +25,7 @@ class MaxComputeConnectionManager(SQLConnectionManager):
         o = credentials.odps()
         # always use UTC timezone
         options.local_timezone = False
+        options.user_agent_pattern = "dbt-maxcompute $pyodps_version $python_version"
 
         try:
             o.get_project().reload()
