@@ -97,30 +97,30 @@
 
   {{ run_hooks(post_hooks) }}
 
-  {%- if tmp_relation_exists -%}
-    {{ adapter.drop_relation(tmp_relation) }}
+  {%- if temp_relation_exists -%}
+    {{ adapter.drop_relation(temp_relation) }}
   {%- endif -%}
 
   {{ return({'relations': [target_relation]}) }}
 {%- endmaterialization %}
 
 {% macro mc_generate_incremental_build_sql(
-    strategy, tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists, incremental_predicates
+    strategy, temp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, temp_relation_exists, incremental_predicates
 ) %}
   {% if strategy == 'insert_overwrite' %}
     {% set build_sql = mc_generate_incremental_insert_overwrite_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+        temp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, temp_relation_exists
     ) %}
   {% elif strategy == 'microbatch' %}
     {% set build_sql = mc_generate_microbatch_build_sql(
-        tmp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, tmp_relation_exists
+        temp_relation, target_relation, sql, unique_key, partition_by, partitions, dest_columns, temp_relation_exists
     ) %}
   {% else %} {# strategy == 'dbt origin' #}
-    {%- call statement('create_tmp_relation') -%}
-      {{ create_table_as_internal(True, tmp_relation, sql, True, partition_config=partition_by) }}
+    {%- call statement('create_temp_relation') -%}
+      {{ create_table_as_internal(True, temp_relation, sql, True, partition_config=partition_by) }}
     {%- endcall -%}
     {% set strategy_sql_macro_func = adapter.get_incremental_strategy_macro(context, strategy) %}
-    {% set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': tmp_relation, 'unique_key': unique_key, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) %}
+    {% set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': temp_relation, 'unique_key': unique_key, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) %}
     {% set build_sql = strategy_sql_macro_func(strategy_arg_dict) %}
   {% endif %}
   {{ return(build_sql) }}
