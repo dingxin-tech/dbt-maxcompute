@@ -4,12 +4,15 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
 */
 
 {% macro maxcompute__truncate_relation(relation) -%}
+  {% call statement('truncate_relation') -%}
     {% if relation.is_table -%}
         TRUNCATE TABLE {{ relation.render() }};
     {% endif -%}
+  {%- endcall %}
 {% endmacro %}
 
 {% macro maxcompute__rename_relation(from_relation, to_relation) -%}
+    {% call statement('rename_relation') -%}
         {% if from_relation.is_table -%}
             ALTER TABLE {{ from_relation.render() }}
             RENAME TO {{ to_relation.identifier }};
@@ -19,6 +22,7 @@ dbt docs: https://docs.getdbt.com/docs/contributing/building-a-new-adapter
         {% else -%}
             {{ get_rename_materialized_view_sql_2(from_relation, to_relation) }}
         {% endif -%}
+    {%- endcall %}
 {% endmacro %}
 
 {% macro maxcompute__copy_grants() -%}

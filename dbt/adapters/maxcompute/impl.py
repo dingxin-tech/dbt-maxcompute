@@ -25,7 +25,6 @@ from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType
 from dbt_common.exceptions import DbtRuntimeError
-from dbt_common.utils import AttrDict
 from odps import ODPS
 from odps.errors import ODPSError, NoSuchObject
 
@@ -149,29 +148,6 @@ class MaxComputeAdapter(SQLAdapter):
                 relation.identifier, relation.project, True, relation.schema
             )
 
-    def truncate_relation(self, relation: MaxComputeRelation) -> None:
-        # from_relation type maybe wrong, here is a workaround.
-        table = self.get_odps_table_by_relation(relation, 3)
-        if table is None:
-            raise DbtRuntimeError(f"Table {relation.render()} does not exist, cannot truncate")
-        relation = MaxComputeRelation.from_odps_table(table)
-        # use macro to truncate
-        super().truncate_relation(relation)
-
-    def rename_relation(
-        self, from_relation: MaxComputeRelation, to_relation: MaxComputeRelation
-    ) -> None:
-        # from_relation type maybe wrong, here is a workaround.
-        from_table = self.get_odps_table_by_relation(from_relation, 3)
-        if from_table is None:
-            raise DbtRuntimeError(
-                f"Table {from_relation.render()} does not exist, cannot truncate"
-            )
-        from_relation = MaxComputeRelation.from_odps_table(from_table)
-
-        # use macro to rename
-        super().rename_relation(from_relation, to_relation)
-
     def get_columns_in_relation(self, relation: MaxComputeRelation):
         logger.debug(f"get_columns_in_relation: {relation.render()}")
         odps_table = self.get_odps_table_by_relation(relation, 3)
@@ -183,28 +159,6 @@ class MaxComputeAdapter(SQLAdapter):
             if odps_table
             else []
         )
-
-    def execute_macro(
-        self,
-        macro_name: str,
-        macro_resolver: Optional[MacroResolverProtocol] = None,
-        project: Optional[str] = None,
-        context_override: Optional[Dict[str, Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None,
-        needs_conn: bool = False,
-    ) -> AttrDict:
-        sql = super().execute_macro(
-            macro_name,
-            macro_resolver=macro_resolver,
-            project=project,
-            context_override=context_override,
-            kwargs=kwargs,
-            needs_conn=needs_conn,
-        )
-        if sql is not None and str(sql).strip() != "None":
-            self.connections.execute(str(sql))
-        return sql
-
     def create_schema(self, relation: MaxComputeRelation) -> None:
         logger.debug(f"create_schema: '{relation.project}.{relation.schema}'")
 
