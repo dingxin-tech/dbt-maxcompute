@@ -94,6 +94,12 @@ default values.
 If you are new to DBT, we have prepared a [Tutorial document](docs/Tutorial.md) for your reference. Of course, you can also access the
 official documentation provided by DBT (but some additional adaptations may be required for MaxCompute)
 
+## Compatible dbt Packages for MaxCompute
+The following community-maintained dbt packages have been verified to work with dbt-maxcompute:
+
+1. [dbt-date (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-date)
+
+
 ## Developers Guide
 
 If you want to contribute or develop the adapter, use the following command to set up your environment:
