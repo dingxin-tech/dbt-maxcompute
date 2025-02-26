@@ -63,9 +63,17 @@
 {% macro mc_dynamic_insert_overwrite_sql(target, source, partition_by) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
     {{ sql_header if sql_header is not none and include_sql_header }}
+    {% if partition_by.auto_partition() -%}
+    INSERT OVERWRITE TABLE {{ target }}
+    (
+    SELECT *
+    FROM {{ source }}
+    )
+    {%- else -%}
     INSERT OVERWRITE TABLE {{ target }} PARTITION({{ partition_by.render(False) }})
     (
     SELECT *
     FROM {{ source }}
     )
+    {%- endif -%}
 {% endmacro %}
