@@ -102,15 +102,6 @@ class MaxComputeAdapter(SQLAdapter):
         logger.warning(f"Table {relation.render()} does not exist.")
         return None
 
-    @lru_cache(maxsize=100)  # Cache results with no limit on size
-    def support_namespace_schema(self, project: str):
-        return (
-            self.get_odps_client()
-            .get_project(project)
-            .get_property("odps.schema.model.enabled", "false")
-            == "true"
-        )
-
     ###
     # Implementations of abstract methods
     ###
@@ -228,8 +219,6 @@ class MaxComputeAdapter(SQLAdapter):
     def list_schemas(self, database: str) -> List[str]:
         database = database.split(".")[0]
         database = database.strip("`")
-        if not self.support_namespace_schema(database):
-            return ["default"]
         res = [schema.name for schema in self.get_odps_client().list_schemas(database)]
 
         logger.debug(f"list_schemas: {res}")
@@ -237,8 +226,6 @@ class MaxComputeAdapter(SQLAdapter):
 
     def check_schema_exists(self, database: str, schema: str) -> bool:
         database = database.strip("`")
-        if not self.support_namespace_schema(database):
-            return False
         schema = schema.strip("`")
         time.sleep(10)
         schema_exist = self.get_odps_client().exist_schema(schema, database)
