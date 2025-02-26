@@ -1,7 +1,6 @@
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from functools import lru_cache
 from multiprocessing.context import SpawnContext
 from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple
 
@@ -150,6 +149,7 @@ class MaxComputeAdapter(SQLAdapter):
             if odps_table
             else []
         )
+
     def create_schema(self, relation: MaxComputeRelation) -> None:
         logger.debug(f"create_schema: '{relation.project}.{relation.schema}'")
 
