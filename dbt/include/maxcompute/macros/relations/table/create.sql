@@ -11,10 +11,10 @@
 
 {% macro create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys=none, delta_table_bucket_num=16, partition_config=none, lifecycle=none) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
-    {{ sql_header if sql_header is not none }}
     {%- set is_delta = is_transactional and primary_keys is not none and primary_keys|length > 0 -%}
 
     {% call statement('create_table', auto_begin=False) -%}
+        {{ sql_header if sql_header is not none }}
         create table {{ relation.render() }} (
             {% set contract_config = config.get('contract') %}
             {% if contract_config.enforced and (not temporary) %}
@@ -48,7 +48,7 @@
             {%- endif %}
             ;
     {%- endcall -%}
-
+    {{ sql_header if sql_header is not none }}
     insert into {{ relation.render() }}
     {% if partition_config and partition_config.fields|length > 0 and not partition_config.auto_partition() -%}
         partition({{ partition_config.render(False) }})

@@ -1,11 +1,10 @@
 import time
-from datetime import datetime, date
-from decimal import Decimal
 
 from dbt.adapters.events.logging import AdapterLogger
 from odps.dbapi import Cursor, Connection
 from odps.errors import ODPSError
-import re
+
+from dbt.adapters.maxcompute.setting_parser import SettingParser
 
 
 class ConnectionWrapper(Connection):
@@ -26,68 +25,12 @@ logger = AdapterLogger("MaxCompute")
 
 class CursorWrapper(Cursor):
     def execute(self, operation, parameters=None, **kwargs):
-        def replace_sql_placeholders(sql_template, values):
-            if not values:
-                return sql_template
-            if operation.count("%s") != len(parameters):
-                raise ValueError("参数数量与SQL模板中的占位符数量不匹配")
-            return operation % tuple(parameters)
-
-        def param_normalization(params):
-            if not params:
-                return None
-            normalized_params = []
-            for param in params:
-                if param is None:
-                    normalized_params.append("NULL")
-                elif isinstance(param, Decimal):
-                    normalized_params.append(f"{param}BD")
-                elif isinstance(param, datetime):
-                    normalized_params.append(f"TIMESTAMP'{param.strftime('%Y-%m-%d %H:%M:%S')}'")
-                elif isinstance(param, date):
-                    normalized_params.append(f"DATE'{param.strftime('%Y-%m-%d')}'")
-                elif isinstance(param, str):
-                    normalized_params.append(f"'{param}'")
-                else:
-                    normalized_params.append(f"{param}")
-            return normalized_params
-
-        def remove_comments(input_string):
-            # Use a regular expression to remove comments
-            result = re.sub(r"/\*[^+].*?\*/", "", input_string, flags=re.DOTALL)
-            return result
-
-        # operation = remove_comments(operation)
-        parameters = param_normalization(parameters)
-        operation = replace_sql_placeholders(operation, parameters)
-
-        def parse_settings(sql):
-            properties = {}
-            index = 0
-
-            while True:
-                end = sql.find(";", index)
-                if end == -1:
-                    break
-                s = sql[index:end]
-                if re.match(r"(?i)^\s*SET\s+.*=.*?\s*$", s):
-                    # handle one setting
-                    i = s.lower().find("set")
-                    pair_string = s[i + 3 :]
-                    pair = pair_string.split("=")
-                    properties[pair[0].strip()] = pair[1].strip()
-                    index = end + 1
-                else:
-                    # break if there is no settings before
-                    break
-
-            return properties
-
-        # retry ten times, each time wait for 10 seconds
+        # retry ten times, each time wait for 15 seconds
+        result = SettingParser.parse(operation)
         retry_times = 10
         for i in range(retry_times):
             try:
-                super().execute(operation)
+                super().execute(result.remaining_query, hints=result.settings)
                 self._instance.wait_for_success()
                 return
             except ODPSError as e:
