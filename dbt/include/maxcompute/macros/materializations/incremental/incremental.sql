@@ -13,7 +13,6 @@
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
   {%- set temp_relation = make_temp_relation(target_relation)-%}
-  {%- set intermediate_relation = make_intermediate_relation(target_relation)-%}
   {%- set backup_relation_type = 'table' if existing_relation is none else existing_relation.type -%}
   {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
 
@@ -40,11 +39,11 @@
   -- will return None in that case. Otherwise, we get a relation that we can drop
   -- later, before we try to use this name for the current operation. This has to happen before
   -- BEGIN, in a separate transaction
-  {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
+  {%- set preexisting_temp_relation = load_cached_relation(temp_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
    -- grab current tables grants config for comparision later on
   {% set grant_config = config.get('grants') %}
-  {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
+  {{ drop_relation_if_exists(preexisting_temp_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
 
   {{ run_hooks(pre_hooks) }}
@@ -90,10 +89,6 @@
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
-
-  {% if existing_relation is none or existing_relation.is_view or should_full_refresh() %}
-    {% do create_indexes(target_relation) %}
-  {% endif %}
 
   {{ run_hooks(post_hooks) }}
 
