@@ -35,6 +35,15 @@ select * from {{ source('raw', 'seed') }}
 
 """.lstrip()
 
+models_3__sql = """
+{{ config(
+    materialized='table',
+    partition_by={"fields": "some_date", "data_types": "timestamp", "generate_column_name": "pt1", "granularity": "month"}
+) }}
+select * from {{ source('raw', 'seed') }}
+
+""".lstrip()
+
 schema_base_yml = """
 version: 2
 sources:
@@ -95,6 +104,7 @@ class BaseTestAutoPartitionTable:
     def models(self):
         return {
             "model.sql": models_2__sql,
+            "model2.sql": models_3__sql,
             "schema.yml": schema_base_yml,
         }
 

@@ -10,6 +10,7 @@ from dbt_common.dataclass_schema import dbtClassMixin
 class PartitionConfig(dbtClassMixin):
     granularity: str = "day"
     copy_partitions: bool = False
+    generate_column_name: Optional[str] = None
 
     fields: List[str] = field(default_factory=list)
     data_types: List[str] = field(default_factory=list)
