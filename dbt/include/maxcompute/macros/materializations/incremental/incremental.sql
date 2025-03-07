@@ -112,7 +112,9 @@
     ) %}
   {% else %} {# strategy == 'dbt origin' #}
     {%- call statement('create_temp_relation') -%}
-      {{ create_table_as_internal(True, temp_relation, sql, True, partition_config=partition_by) }}
+      {% if not temp_relation_exists %}
+          {{ create_table_as_internal(True, temp_relation, sql, True, partition_config=partition_by) }}
+      {% endif %}
     {%- endcall -%}
     {% set strategy_sql_macro_func = adapter.get_incremental_strategy_macro(context, strategy) %}
     {% set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': temp_relation, 'unique_key': unique_key, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) %}
