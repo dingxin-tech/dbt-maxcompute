@@ -1,3 +1,4 @@
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -81,7 +82,7 @@ class MaxComputeAdapter(SQLAdapter):
         self.connections: MaxComputeConnectionManager = self.connections
 
     def get_odps_client(self) -> ODPS:
-        conn = self.connections.get_thread_connection()
+        conn = self.acquire_connection()
         return conn.handle.odps
 
     @available.parse_none
@@ -551,3 +552,58 @@ class MaxComputeAdapter(SQLAdapter):
         if relation.is_materialized_view:
             raise DbtRuntimeError("Unsupported set comment to materialized view. ")
         return ""
+
+    @available
+    def get_relations_by_pattern(
+        self, schema_pattern: str, table_pattern: str, exclude: str, database: str
+    ) -> List[MaxComputeRelation]:
+        o = self.get_odps_client()
+        results = []
+
+        # 转换模式为正则表达式
+        schema_regex = self.sql_like_to_regex(schema_pattern)
+        table_regex = self.sql_like_to_regex(table_pattern)
+        exclude_regex = self.sql_like_to_regex(exclude)
+
+        # 获取 schemas
+        schemas = []
+        for schema in o.list_schemas(database):
+            if re.fullmatch(schema_regex, schema.name):
+                schemas.append(schema)
+        logger.debug(f"Found {len(schemas)} schemas matching {schema_regex}")
+
+        # 获取 tables
+        for schema in schemas:
+            for table in o.list_tables(project=database, schema=schema.name):
+                if re.fullmatch(table_regex, table.name):
+                    if exclude and re.fullmatch(exclude_regex, table.name):
+                        continue
+                    table = self.get_relation(database, schema.name, table.name)
+                    if table:
+                        results.append(table)
+        logger.debug(f"Found {len(results)} tables matching {schema_regex}.{table_regex}")
+
+        return results
+
+    @available
+    def get_relations_by_prefix(
+        self, schema: str, prefix: str, exclude: str, database: str
+    ) -> List[MaxComputeRelation]:
+        o = self.get_odps_client()
+        exclude_regex = self.sql_like_to_regex(exclude)
+        results = []
+        for table in o.list_tables(project=database, schema=schema, prefix=prefix):
+            if exclude and re.fullmatch(exclude_regex, table.name):
+                continue
+            table = self.get_relation(database, schema, table.name)
+            if table:
+                results.append(table)
+        logger.debug(f"Get tables by pattern({schema}.{prefix}) : {results}")
+        return results
+
+    def sql_like_to_regex(self, pattern: str) -> str:
+        if not pattern:
+            return "^$"
+        regex = re.escape(pattern)
+        regex = regex.replace("%", ".*").replace("_", ".")
+        return f"^{regex}$"
