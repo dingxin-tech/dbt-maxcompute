@@ -6,6 +6,7 @@ from multiprocessing.context import SpawnContext
 from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple
 
 import agate
+import numpy as np
 import pandas as pd
 import pytz
 from agate import Table
@@ -417,7 +418,10 @@ class MaxComputeAdapter(SQLAdapter):
                 timestamp_columns.append(agate_table.column_names[i])
 
         pd_dataframe = pd.read_csv(
-            file_path, delimiter=field_delimiter, parse_dates=timestamp_columns
+            file_path,
+            delimiter=field_delimiter,
+            parse_dates=timestamp_columns,
+            dtype=np.dtype(object),
         )
         logger.debug(f"Load csv to table {database}.{schema}.{table_name}")
         # make sure target table exist
