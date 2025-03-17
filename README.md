@@ -98,6 +98,7 @@ official documentation provided by DBT (but some additional adaptations may be r
 The following community-maintained dbt packages have been verified to work with dbt-maxcompute:
 
 1. [dbt-date (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-date)
+2. [dbt-utils (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-utils)
 
 
 ## Developers Guide
