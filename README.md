@@ -99,6 +99,7 @@ The following community-maintained dbt packages have been verified to work with 
 
 1. [dbt-date (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-date)
 2. [dbt-utils (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-utils)
+3. [elementary (MaxCompute Edition)](https://github.com/dingxin-tech/elementary)
 
 
 ## Developers Guide
