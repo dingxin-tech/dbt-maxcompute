@@ -46,7 +46,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Alibaba Cloud MaxCompute Team",
     author_email="zhangdingxin.zdx@alibaba-inc.com",
-    url="https://github.com/dingxin-tech/dbt-maxcompute",
+    url="https://github.com/aliyun/dbt-maxcompute",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
