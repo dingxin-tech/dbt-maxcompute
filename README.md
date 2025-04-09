@@ -45,7 +45,7 @@ functionality and aiming for backwards compatibility.
 ### Install the plugin
 
 ```bash
-# we use python 3.9 for this example
+# we use conda and python 3.9 for this example
 conda create --name dbt-maxcompute-example python=3.9
 conda activate dbt-maxcompute-example
 
@@ -101,6 +101,7 @@ The following community-maintained dbt packages have been verified to work with 
 2. [dbt-utils (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-utils)
 3. [dbt-expectations (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-expectations)
 4. [elementary (MaxCompute Edition)](https://github.com/dingxin-tech/elementary)
+5. [dbt-project-evaluator (MaxCompute Edition)](https://github.com/dingxin-tech/dbt-project-evaluator)
 
 
 ## Developers Guide
