@@ -137,9 +137,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install python dependencies
+        # wheel 0.46.1 may build error in python 3.9,3.10,3.11 but ok in 3.12
         run: |
           python -m pip install --user --upgrade pip
-          python -m pip install --upgrade wheel
+          python -m pip install --upgrade wheel==0.45.1
           python -m pip --version
 
       - uses: actions/download-artifact@v4
