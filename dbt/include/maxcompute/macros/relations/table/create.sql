@@ -1,10 +1,22 @@
 {% macro maxcompute__create_table_as(temporary, relation, sql) -%}
     {%- set is_transactional = config.get('transactional') or config.get('delta') -%}
-    {%- set primary_keys = config.get('primary_keys') -%}
-    {%- set delta_table_bucket_num = config.get('delta_table_bucket_num', 16)-%}
+    {%- set primary_keys = config.get('primary_keys', []) -%}
+    {%- set delta_table_bucket_num = config.get('delta_table_bucket_num', 16) -%}
     {%- set raw_partition_by = config.get('partition_by', none) -%}
     {%- set lifecycle = config.get('lifecycle', none) -%}
     {%- set partition_config = adapter.parse_partition_by(raw_partition_by) -%}
+
+    {# 约束校验逻辑 #}
+    {%- set allowed_constraints = ['primary_key', 'not_null'] -%}
+    {%- set model_constraints = model.get('constraints', []) -%}
+    {%- for constraint in model_constraints -%}
+        {%- if constraint.type|lower not in allowed_constraints -%}
+            {{ exceptions.raise_compiler_error(
+                "MaxCompute currently only supports primary_keys and not_null constraints. Invalid constraint: " ~ constraint.type
+            ) }}
+        {%- endif -%}
+    {%- endfor -%}
+
     {{ create_table_as_internal(temporary, relation, sql, is_transactional, primary_keys, delta_table_bucket_num, partition_config, lifecycle) }}
 {%- endmacro %}
 
@@ -22,7 +34,7 @@
                 {{ get_table_columns_and_constraints_without_brackets(partition_config) }}
                 {%- set sql = get_select_subquery(sql) %}
             {%- else -%}
-                {{ get_table_columns(sql, primary_keys, partition_config) }}
+                {{ get_table_columns_and_constraints(primary_keys, partition_config) }}
             {%- endif -%}
             {% if is_delta -%}
                 ,primary key(
@@ -63,8 +75,8 @@
 {%- endmacro %}
 
 
-{% macro get_table_columns(sql, primary_keys=none, partition_config=None) -%}
-    {% set model_columns = model.columns %}
+{% macro get_table_columns_and_constraints(primary_keys=none, partition_config=None) -%}
+    {% set model_columns = model.get('columns', {}) %}
     {% set partition_by_cols = [] if (partition_config is none or partition_config.auto_partition()) else partition_config.fields %}
     {% set ns = namespace(needs_comma=false) %}  {# 初始化命名空间变量 #}
 
@@ -72,13 +84,17 @@
     {% if c.name not in partition_by_cols -%}
         {{- "," if ns.needs_comma -}}  {# 根据命名空间变量判断逗号 #}
         {{ c.name }} {{ c.dtype }}
+        {# 主键自动添加NOT NULL #}
         {% if primary_keys and c.name in primary_keys %}not null{% endif %}
-        {% if model_columns and c.name in model_columns %}  {# 从模型配置中读取约束 #}
+        {# 处理非主键的NOT NULL约束 #}
+        {% if model_columns.get(c.name, {}).constraints %}
            {% for constraint in model_columns[c.name].constraints %}
                {% if constraint.type == 'not_null' %}
                    {% if not primary_keys or c.name not in primary_keys %}
                       not null   {# 避免重复增加 not null #}
                    {% endif %}
+               {%- elif constraint.type not in ['primary_key', 'not_null'] -%}
+                        {{ exceptions.raise_compiler_error("Unsupported constraint type: " ~ constraint.type) }}
                {% endif %}
            {% endfor %}
            {{ "COMMENT" }} {{ quote_and_escape(model_columns[c.name].description) }}
