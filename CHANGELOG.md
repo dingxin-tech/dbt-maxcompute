@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The optional `[maxframe]` installation now constrains PyArrow below 26 to match
+  MaxFrame 2.x's NumPy 1 requirement. PyArrow 26 could install successfully but fail
+  to import, causing `dbt seed` to report that PyArrow was missing. CI now checks
+  the built wheel with the extra installed and initializes the PyODPS Arrow writer.
 - Functional tests without credentials are now reported as *skipped* with the
   reason, instead of failing with a missing-file error inside the profile
   fixture.

@@ -63,6 +63,17 @@ To run Python models on MaxFrame, install the optional MaxFrame runtime:
 pip install "dbt-maxcompute[maxframe]"
 ```
 
+MaxFrame 2.x requires NumPy 1.x, so this extra selects PyArrow below 26. PyArrow 26
+requires NumPy 2 at import time; installing it alongside MaxFrame can make `dbt seed`
+report that PyArrow is missing even though it is installed.
+
+For an existing `1.11.3b3` environment affected by this problem, pin the compatible
+range until an adapter release includes the dependency guard:
+
+```bash
+python -m pip install --upgrade "pyarrow<26"
+```
+
 ### Configure dbt profile:
 
 1. Create a file in the ~/.dbt/ directory named profiles.yml.
