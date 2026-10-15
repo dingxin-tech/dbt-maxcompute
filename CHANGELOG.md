@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.3b4] — 2026-10-15
+
 ### Added
 
 - Opt-in `truncate_insert` incremental strategy replaces all rows in a
@@ -31,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Incremental materializations now execute hooks configured with
+  `transaction: false`, rather than silently skipping them.
+- Incremental column widening preserves MaxCompute column type details and
+  validates the widening plan before changing the target schema.
+- Snapshots validate that an existing target can retain history before
+  submitting a merge, and preserve the snapshot key columns.
 - The optional `[maxframe]` installation now constrains PyArrow below 26 to match
   MaxFrame 2.x's NumPy 1 requirement. PyArrow 26 could install successfully but fail
   to import, causing `dbt seed` to report that PyArrow was missing. CI now checks
