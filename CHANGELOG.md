@@ -34,13 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after the metadata retries; dbt-core records the failure in `catalog.json`
   `errors`, making the gap visible to consumers of the artifact.
 
+### Upgrade notes
+
+- SQL continues to default `odps.sql.python.version` to `cp311`, as in the
+  `1.11.3` beta releases. Upgrading from a beta preserves the runtime default
+  for both dbt function references and functions called by raw SQL name.
+- When upgrading from `1.11.2`, which did not set this hint globally, models
+  calling legacy CPython 2.7 or 3.7 UDFs must explicitly set
+  `sql_hints={'odps.sql.python.version': 'cp27'}` or `cp37`, respectively.
+  Hooks that invoke a legacy UDF must include the corresponding `SET` in
+  their own SQL statement. A single statement cannot mix Python runtimes.
+
 ### Fixed
 
-- Automatic CPython 3.11 selection is scoped to nodes referencing dbt
-  `functions:` resources. Ordinary SQL keeps the server runtime and explicit
-  SQL hints used by `1.11.2`, including existing Python 2 UDFs. The preview
-  releases' global CP311 default is removed; preview users calling Python 3
-  functions by raw SQL name should set the runtime explicitly in `sql_hints`.
 - Incremental materializations now execute hooks configured with
   `transaction: false`, rather than silently skipping them.
 - Incremental column widening preserves MaxCompute column type details and

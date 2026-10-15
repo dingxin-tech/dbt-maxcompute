@@ -1,10 +1,9 @@
 import re
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from multiprocessing.context import SpawnContext
-from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple, Type, Iterator
+from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple, Type
 
 import agate
 import numpy as np
@@ -58,7 +57,6 @@ from dbt.adapters.maxcompute.utils import (
     quote_ref,
     retry_on_transport_error,
 )
-from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
 
@@ -123,52 +121,6 @@ class MaxComputeAdapter(SQLAdapter):
     def __init__(self, config, mp_context: SpawnContext) -> None:
         super().__init__(config, mp_context)
         self.connections: MaxComputeConnectionManager = self.connections
-
-    @contextmanager
-    def connection_named(
-        self,
-        name: str,
-        query_header_context: Any = None,
-        should_release_connection=True,
-    ) -> Iterator[None]:
-        with super().connection_named(name, query_header_context, should_release_connection):
-            if self._uses_python_functions(query_header_context):
-                config = getattr(query_header_context, "config", {})
-                hints = config.get("sql_hints") if hasattr(config, "get") else None
-                runtime = (hints or {}).get("odps.sql.python.version", "cp311")
-                # Keep compilation lazy: the runtime is applied only if a cursor
-                # actually executes SQL. Explicit SET/model runtime hints win.
-                with ConnectionWrapper.python_runtime(runtime):
-                    yield
-            else:
-                yield
-
-    def _uses_python_functions(self, node: Any) -> bool:
-        nodes = getattr(getattr(self, "_macro_resolver", None), "nodes", {})
-        pending = [node] if node is not None else []
-        visited: Set[int] = set()
-        while pending:
-            current = pending.pop()
-            if id(current) in visited:
-                continue
-            visited.add(id(current))
-            # Inline `dbt show` nodes record functions before their function
-            # references have been added to depends_on.nodes by dbt Core.
-            if getattr(current, "functions", ()):
-                return True
-            dependencies = getattr(getattr(current, "depends_on", None), "nodes", ())
-            for dependency in dependencies:
-                if dependency.startswith("function."):
-                    return True
-                ancestor = nodes.get(dependency)
-                # These relations execute their SQL in the caller's query. A
-                # persisted table does not execute its producing UDF again.
-                if getattr(getattr(ancestor, "config", None), "materialized", None) in (
-                    "ephemeral",
-                    "view",
-                ):
-                    pending.append(ancestor)
-        return False
 
     def get_odps_client(self) -> ODPS:
         conn = self.acquire_connection()
@@ -250,9 +202,7 @@ class MaxComputeAdapter(SQLAdapter):
 
     @available.parse_none
     def valid_snapshot_target(
-        self,
-        relation: MaxComputeRelation,
-        column_names: Optional[Dict[str, str]] = None,
+        self, relation: MaxComputeRelation, column_names: Optional[Dict[str, str]] = None
     ) -> None:
         """dbt calls this when the snapshot table already exists.
 
@@ -376,10 +326,7 @@ class MaxComputeAdapter(SQLAdapter):
             new_config.table_comment is not None
             and new_config.table_comment != existing_config.table_comment
         ):
-            changes["table_comment"] = (
-                existing_config.table_comment,
-                new_config.table_comment,
-            )
+            changes["table_comment"] = (existing_config.table_comment, new_config.table_comment)
         if new_config.disable_rewrite != existing_config.disable_rewrite:
             changes["disable_rewrite"] = (
                 existing_config.disable_rewrite,
@@ -978,9 +925,7 @@ class MaxComputeAdapter(SQLAdapter):
     @available
     @classmethod
     def mc_render_raw_columns_constraints(
-        cls,
-        raw_columns: Dict[str, Dict[str, Any]],
-        partition_config: Optional[PartitionConfig],
+        cls, raw_columns: Dict[str, Dict[str, Any]], partition_config: Optional[PartitionConfig]
     ) -> List:
         rendered_column_constraints = []
         partition_column = []

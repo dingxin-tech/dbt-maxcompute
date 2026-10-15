@@ -1,7 +1,5 @@
 import copy
 import time
-from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Optional
 
@@ -10,8 +8,6 @@ from odps.dbapi import Cursor, Connection
 from odps.errors import ODPSError
 
 from dbt.adapters.maxcompute.setting_parser import SettingParser
-
-_PYTHON_RUNTIME: ContextVar[Optional[str]] = ContextVar("maxcompute_python_runtime", default=None)
 
 
 @dataclass
@@ -25,15 +21,6 @@ class ConnectionWrapper(Connection):
     def __init__(self, odps=None, hints=None, maxqa_config=None, **kwargs):
         super().__init__(odps=odps, hints=hints, **kwargs)
         self._maxqa_config = maxqa_config
-
-    @staticmethod
-    @contextmanager
-    def python_runtime(runtime):
-        token = _PYTHON_RUNTIME.set(runtime)
-        try:
-            yield
-        finally:
-            _PYTHON_RUNTIME.reset(token)
 
     def cursor(self, *args, **kwargs):
         return CursorWrapper(
@@ -58,9 +45,6 @@ class CursorWrapper(Cursor):
 
     def execute(self, operation, parameters=None, **kwargs):
         result = SettingParser.parse(operation)
-        runtime = _PYTHON_RUNTIME.get()
-        if runtime is not None:
-            result.settings.setdefault("odps.sql.python.version", runtime)
         effective_maxqa = self._resolve_maxqa(result.settings)
         retry_times = 10
         for i in range(retry_times):

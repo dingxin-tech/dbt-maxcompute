@@ -254,8 +254,6 @@ cross join digits d4
         for model in ("direct_call", "via_ephemeral", "via_view", "explicit_legacy"):
             result = project.run_sql(f"select value from {{schema}}.{model}", fetch="one")
             assert result[0] == 42
-        legacy_preview = run_dbt(["show", "--select", "explicit_legacy"])
-        assert legacy_preview.results[0].agate_table.rows[0]["value"] == 42
 
         function_path = Path(project.project_root) / "functions" / "double_value.py"
         function_path.write_text("def main(value):\n    return value * 3\n", encoding="utf-8")
@@ -303,20 +301,20 @@ class TestLegacyPythonRuntime:
     def models(self):
         return {
             "legacy_call.sql": """
-{{ config(materialized='table') }}
+{{ config(materialized='table', sql_hints={'odps.sql.python.version': 'cp27'}) }}
 select {{ target.schema }}.legacy_runtime(cast(21 as bigint)) as value
 """,
             "explicit_runtime_with_legacy_hook.sql": """
 {{ config(
     materialized='table',
     sql_hints={'odps.sql.python.version': 'cp311'},
-    pre_hook='select ' ~ target.schema ~ '.legacy_runtime(cast(21 as bigint))'
+    pre_hook='set odps.sql.python.version=cp27; select ' ~ target.schema ~ '.legacy_runtime(cast(21 as bigint))'
 ) }}
 select cast(1 as bigint) as value
 """,
         }
 
-    def test_sql_without_dbt_functions_preserves_server_python_runtime(self, project):
+    def test_explicit_runtime_preserves_legacy_python_functions_and_hooks(self, project):
         source = b"""from odps.udf import annotate
 
 @annotate('bigint->bigint')

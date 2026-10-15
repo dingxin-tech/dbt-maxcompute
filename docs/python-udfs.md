@@ -25,16 +25,15 @@ MaxCompute clients.
   dependencies;
 - existing archive resources added to `sys.path` before user imports.
 
-The adapter selects MaxCompute CPython 3.11 for nodes that reference dbt
-functions through `{{ function('name') }}`. Ordinary SQL keeps the server's
-runtime choice, preserving existing Python 2 UDF calls. A function called by
-its raw SQL name needs an explicit `sql_hints` runtime, for example
-`{'odps.sql.python.version': 'cp311'}`. Explicit SQL/model runtime hints also
-override the automatic selection, including `cp37` for legacy functions.
+The adapter enables MaxCompute CPython 3.11 by default with
+`odps.sql.python.version=cp311` for SQL submitted through dbt. CPython 3.7.3
+remains available as an explicit legacy compatibility mode.
 
-This replaces the preview releases' global CP311 default. When upgrading from
-a preview, add an explicit CP311 hint to raw SQL calls that relied on that
-default, or reference the declared dbt function with `function('name')`.
+This global CP311 default is unchanged from the `1.11.3` beta releases,
+including calls by raw SQL function name. When upgrading from `1.11.2`, set
+`sql_hints={'odps.sql.python.version': 'cp27'}` for existing Python 2.7 UDFs,
+or use `cp37` for Python 3.7 UDFs. A legacy UDF called by a hook also needs
+the corresponding `SET odps.sql.python.version=...;` in that hook's SQL.
 
 dbt Core requires every Python function to have an effective
 `runtime_version`. Set CPython 3.11 once as the project-wide default in
@@ -291,8 +290,11 @@ does not carry the expected dbt ownership marker.
   not supported.
 - MaxCompute UDFs cannot access the public internet by default.
 - A single MaxCompute SQL statement cannot mix incompatible Python runtimes.
-  dbt function callers default to `cp311`; a legacy `cp37` call must explicitly
-  set `odps.sql.python.version` in `sql_hints` for that execution path.
+  The adapter defaults to `cp311`; a legacy `cp37` call must explicitly
+  override `odps.sql.python.version` in `sql_hints` for that execution path.
+- `dbt show --select` uses dbt Core's preview SQL path, which does not apply
+  model `sql_hints`. For a legacy runtime, also provide the matching `SET`
+  in the model's `sql_header` when previewing it.
 
 ## Troubleshooting
 
@@ -300,8 +302,8 @@ does not carry the expected dbt ownership marker.
 
 Set the project-wide `functions: +runtime_version: "3.11"` default shown above,
 or declare `runtime_version: "3.11"` / `cp311` on each function. Legacy
-functions may declare `3.7`, `3.7.3`, or `cp37`, but SQL that references them
-through `function('name')` must also set `odps.sql.python.version` to `cp37`.
+functions may declare `3.7`, `3.7.3`, or `cp37`, but SQL that calls them must
+override the adapter's default `odps.sql.python.version` hint to `cp37`.
 
 ### A dependency cannot be imported
 
