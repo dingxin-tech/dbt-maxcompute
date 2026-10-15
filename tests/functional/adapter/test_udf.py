@@ -145,6 +145,7 @@ def main(value):
 functions:
   - name: legacy_mapping
     config:
+      entry_point: main
       runtime_version: cp37
     arguments:
       - name: value
