@@ -37,12 +37,12 @@ level than the adapter package:
 | Capability | Status | Intended use |
 |---|---|---|
 | SQL models and established materializations | Generally Available | Production |
-| MaxFrame Python models | **Production Preview** | Selected production workloads after reviewing documented limitations |
-| Python scalar and aggregate UDFs | **Beta** | Evaluation and controlled workloads; dependency conventions may change before GA |
+| MaxFrame Python models | Generally Available | Production within the documented supported scope |
+| Python scalar and aggregate UDFs | Generally Available | Production within the documented supported scope |
 
-Production Preview and Beta limitations are documented in their respective
-guides. Pre-release package versions such as `1.11.3b3` do not replace the
-latest stable release.
+MaxFrame Python models and Python scalar/aggregate UDFs are Generally Available
+starting with `1.11.3`. Their guides retain the supported scope and known
+limitations, including remote MaxFrame DAG cancellation.
 
 ## Getting Started
 
@@ -67,11 +67,11 @@ MaxFrame 2.x requires NumPy 1.x, so this extra selects PyArrow below 26. PyArrow
 requires NumPy 2 at import time; installing it alongside MaxFrame can make `dbt seed`
 report that PyArrow is missing even though it is installed.
 
-For an existing `1.11.3b3` environment affected by this problem, pin the compatible
-range until an adapter release includes the dependency guard:
+For an existing preview environment affected by this problem, upgrade to the
+release that includes the dependency guard:
 
 ```bash
-python -m pip install --upgrade "pyarrow<26"
+python -m pip install --upgrade "dbt-maxcompute[maxframe]==1.11.3"
 ```
 
 ### Configure dbt profile:

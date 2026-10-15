@@ -242,3 +242,45 @@ cross join digits d4
 
         rebuilt = run_dbt(["build", "--select", "double_value"])
         assert len(rebuilt) == 1
+
+
+class TestLegacyPythonRuntime:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "legacy_call.sql": """
+{{ config(materialized='table') }}
+select {{ target.schema }}.legacy_runtime(cast(21 as bigint)) as value
+"""
+        }
+
+    def test_sql_without_dbt_functions_preserves_server_python_runtime(self, project):
+        source = b"""from odps.udf import annotate
+
+@annotate('bigint->bigint')
+class LegacyRuntime(object):
+    def evaluate(self, value):
+        return long(value) * 2
+"""
+        with get_connection(project.adapter):
+            client = project.adapter.get_odps_client()
+            resource = client.create_resource(
+                "legacy_runtime.py",
+                "py",
+                schema=project.test_schema,
+                fileobj=io.BytesIO(source),
+            )
+            try:
+                client.create_function(
+                    "legacy_runtime",
+                    class_type="legacy_runtime.LegacyRuntime",
+                    resources=[resource],
+                    schema=project.test_schema,
+                )
+                run_dbt(["run"])
+                result = project.run_sql("select value from {schema}.legacy_call", fetch="one")
+                assert result[0] == 42
+            finally:
+                if client.exist_function("legacy_runtime", schema=project.test_schema):
+                    client.delete_function("legacy_runtime", schema=project.test_schema)
+                client.delete_resource("legacy_runtime.py", schema=project.test_schema)

@@ -1,9 +1,10 @@
 import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from multiprocessing.context import SpawnContext
-from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple, Type
+from typing import Optional, List, Dict, Any, Set, FrozenSet, Tuple, Type, Iterator
 
 import agate
 import numpy as np
@@ -122,6 +123,25 @@ class MaxComputeAdapter(SQLAdapter):
         super().__init__(config, mp_context)
         self.connections: MaxComputeConnectionManager = self.connections
 
+    @contextmanager
+    def connection_named(
+        self,
+        name: str,
+        query_header_context: Any = None,
+        should_release_connection=True,
+    ) -> Iterator[None]:
+        with super().connection_named(name, query_header_context, should_release_connection):
+            dependencies = getattr(getattr(query_header_context, "depends_on", None), "nodes", ())
+            if any(node.startswith("function.") for node in dependencies):
+                # Only dbt function callers opt into Python 3. Ordinary SQL keeps
+                # the server/runtime hints used before Python functions existed.
+                # Explicit SET/model hints still override this connection default.
+                connection = self.connections.get_thread_connection()
+                with connection.handle.python_runtime("cp311"):
+                    yield
+            else:
+                yield
+
     def get_odps_client(self) -> ODPS:
         conn = self.acquire_connection()
         return conn.handle.odps
@@ -202,7 +222,9 @@ class MaxComputeAdapter(SQLAdapter):
 
     @available.parse_none
     def valid_snapshot_target(
-        self, relation: MaxComputeRelation, column_names: Optional[Dict[str, str]] = None
+        self,
+        relation: MaxComputeRelation,
+        column_names: Optional[Dict[str, str]] = None,
     ) -> None:
         """dbt calls this when the snapshot table already exists.
 
@@ -326,7 +348,10 @@ class MaxComputeAdapter(SQLAdapter):
             new_config.table_comment is not None
             and new_config.table_comment != existing_config.table_comment
         ):
-            changes["table_comment"] = (existing_config.table_comment, new_config.table_comment)
+            changes["table_comment"] = (
+                existing_config.table_comment,
+                new_config.table_comment,
+            )
         if new_config.disable_rewrite != existing_config.disable_rewrite:
             changes["disable_rewrite"] = (
                 existing_config.disable_rewrite,
@@ -925,7 +950,9 @@ class MaxComputeAdapter(SQLAdapter):
     @available
     @classmethod
     def mc_render_raw_columns_constraints(
-        cls, raw_columns: Dict[str, Dict[str, Any]], partition_config: Optional[PartitionConfig]
+        cls,
+        raw_columns: Dict[str, Dict[str, Any]],
+        partition_config: Optional[PartitionConfig],
     ) -> List:
         rendered_column_constraints = []
         partition_column = []

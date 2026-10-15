@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.11.3b4] — 2026-10-15
+## [1.11.3] — 2026-10-15
 
 ### Added
 
+- MaxFrame Python table/incremental models and Python scalar/aggregate UDFs
+  graduate to Generally Available within their documented supported scope.
+  Existing limitations, including remote MaxFrame DAG cancellation, remain.
 - Opt-in `truncate_insert` incremental strategy replaces all rows in a
   non-partitioned target with one `INSERT OVERWRITE`, preserving the target
   table object. Existing strategies and their full-refresh behavior are unchanged.
@@ -33,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic CPython 3.11 selection is scoped to nodes referencing dbt
+  `functions:` resources. Ordinary SQL keeps the server runtime and explicit
+  SQL hints used by `1.11.2`, including existing Python 2 UDFs. The preview
+  releases' global CP311 default is removed; preview users calling Python 3
+  functions by raw SQL name should set the runtime explicitly in `sql_hints`.
 - Incremental materializations now execute hooks configured with
   `transaction: false`, rather than silently skipping them.
 - Incremental column widening preserves MaxCompute column type details and

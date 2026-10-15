@@ -1,5 +1,6 @@
 import copy
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional
 
@@ -21,6 +22,15 @@ class ConnectionWrapper(Connection):
     def __init__(self, odps=None, hints=None, maxqa_config=None, **kwargs):
         super().__init__(odps=odps, hints=hints, **kwargs)
         self._maxqa_config = maxqa_config
+
+    @contextmanager
+    def python_runtime(self, runtime):
+        previous_hints = self._hints
+        self._hints = {**(previous_hints or {}), "odps.sql.python.version": runtime}
+        try:
+            yield
+        finally:
+            self._hints = previous_hints
 
     def cursor(self, *args, **kwargs):
         return CursorWrapper(
