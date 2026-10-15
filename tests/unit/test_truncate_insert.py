@@ -10,7 +10,10 @@ from types import SimpleNamespace
 
 import pytest
 from dbt.clients.jinja import MacroGenerator
+from dbt.adapters.base.impl import DEFAULT_BASE_BEHAVIOR_FLAGS
 from dbt_common.exceptions import CompilationError, MacroReturn
+from odps.models import Project, Table
+from odps.models.table import TableSchema
 
 from dbt.adapters.maxcompute.impl import MaxComputeAdapter
 from dbt.adapters.maxcompute.relation import MaxComputeRelation
@@ -54,7 +57,8 @@ def _context(values=None, existing=TARGET, full_refresh=False, partitioned=False
     adapter = SimpleNamespace(
         parse_partition_by=lambda value: value,
         get_odps_table_by_relation=lambda relation: SimpleNamespace(
-            table_schema=SimpleNamespace(partitions=["ds"] if partitioned else [])
+            type=Table.Type.MANAGED_TABLE,
+            table_schema=SimpleNamespace(partitions=["ds"] if partitioned else []),
         ),
         get_columns_in_relation=lambda relation: columns,
         quote=MaxComputeAdapter.quote,
@@ -258,3 +262,70 @@ def test_legacy_incremental_dispatch_is_unchanged(strategy):
 def test_advertised_strategies_keep_all_existing_names():
     strategies = MaxComputeAdapter.__new__(MaxComputeAdapter).valid_incremental_strategies()
     assert set(LEGACY[1:]) | {"truncate_insert"} == set(strategies)
+
+
+@pytest.mark.parametrize("override", ["entry", "dispatch"])
+@pytest.mark.parametrize("full_refresh", [False, True])
+def test_existing_project_strategy_overrides_keep_partition_and_refresh_behavior(
+    override, full_refresh
+):
+    context, events = _context(
+        {"incremental_strategy": "truncate_insert", "partition_by": {"field": "ds"}},
+        full_refresh=full_refresh,
+        partitioned=True,
+    )
+    name = (
+        "get_incremental_truncate_insert_sql"
+        if override == "entry"
+        else "maxcompute__get_incremental_truncate_insert_sql"
+    )
+    custom = MacroGenerator(
+        SimpleNamespace(
+            name=name,
+            macro_sql=(
+                "{% macro " + name + "(args) %}"
+                "{{ return('CUSTOM EXISTING STRATEGY') }}{% endmacro %}"
+            ),
+            unique_id=f"macro.existing_project.{name}",
+            original_file_path="macros/custom_incremental.sql",
+        ),
+        context,
+    )
+    context[name] = custom
+    if override == "entry":
+        context["adapter"].dispatch = lambda *args: pytest.fail(
+            "custom entry must not resolve the built-in dispatch"
+        )
+    # Exercise dbt's actual custom-name resolution instead of the fixture stub.
+    resolver = MaxComputeAdapter.__new__(MaxComputeAdapter)
+    resolver.config = SimpleNamespace(project_name="existing_project")
+    resolver.behavior = list(DEFAULT_BASE_BEHAVIOR_FLAGS)
+    context["adapter"].get_incremental_strategy_macro = resolver.get_incremental_strategy_macro
+    _run(context)
+    if full_refresh:
+        assert ("drop", "target") in events
+        assert any("create table" in event[-1] for event in events if event[0] == "statement")
+    else:
+        assert next(event[2] for event in events if event[:2] == ("statement", "main")) == (
+            "CUSTOM EXISTING STRATEGY"
+        )
+        assert ("drop", "target") not in events
+
+
+def test_real_external_table_metadata_is_rejected_before_hooks_or_writes():
+    table = Table(
+        name="target",
+        parent=Project(name="project"),
+        _loaded=True,
+        type=Table.Type.EXTERNAL_TABLE,
+        table_schema=TableSchema.from_lists(["id", "value"], ["bigint", "string"]),
+        is_virtual_view=False,
+        is_materialized_view=False,
+    )
+    relation = MaxComputeRelation.from_odps_table(table)
+    assert relation.is_table  # External ODPS tables share this dbt relation type.
+    context, events = _context({"incremental_strategy": "truncate_insert"}, existing=relation)
+    context["adapter"].get_odps_table_by_relation = lambda relation: table
+    with pytest.raises(CompilationError, match="external"):
+        _run(context)
+    assert events == []

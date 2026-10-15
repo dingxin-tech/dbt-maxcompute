@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opt-in `truncate_insert` incremental strategy replaces all rows in a
   non-partitioned target with one `INSERT OVERWRITE`, preserving the target
   table object. Existing strategies and their full-refresh behavior are unchanged.
+  Existing project/package macro overrides keep their own validation and behavior.
 - SQL integration regression entry point: `scripts/run-integration-tests.sh`
   runs a minimal real-SQL set (table, view, incremental, dbt tests, persisted
   docs) plus an invalid-SQL case that must fail, and verifies that every test

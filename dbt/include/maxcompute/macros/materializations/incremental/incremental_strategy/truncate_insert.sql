@@ -1,3 +1,14 @@
+{% macro mc_truncate_insert_uses_builtin(context) -%}
+    {#-- Custom strategies could already use this name. Apply the new checks
+         only when both dbt override points resolve to our own macros. --#}
+    {% set entry = context.get('get_incremental_truncate_insert_sql') %}
+    {% if entry is none or entry.macro is undefined or entry.macro.unique_id != 'macro.maxcompute.get_incremental_truncate_insert_sql' %}
+        {{ return(false) }}
+    {% endif %}
+    {% set implementation = adapter.dispatch('get_incremental_truncate_insert_sql', 'dbt') %}
+    {{ return(implementation.macro is defined and implementation.macro.unique_id == 'macro.maxcompute.maxcompute__get_incremental_truncate_insert_sql') }}
+{%- endmacro %}
+
 {% macro mc_validate_truncate_insert_config(partition_by, partitions, predicates, existing_relation, full_refresh_mode) -%}
     {% if partition_by is not none or partitions %}
         {% do exceptions.raise_compiler_error(
@@ -29,6 +40,12 @@
         {% if table is none %}
             {% do exceptions.raise_compiler_error(
                 "Cannot read the 'truncate_insert' target metadata to verify it is non-partitioned."
+            ) %}
+        {% endif %}
+        {#-- External ODPS tables are also mapped to dbt's ordinary table type. --#}
+        {% if table.type.value == 'EXTERNAL_TABLE' %}
+            {% do exceptions.raise_compiler_error(
+                "The 'truncate_insert' strategy does not support external target tables."
             ) %}
         {% endif %}
         {% if table.table_schema.partitions %}

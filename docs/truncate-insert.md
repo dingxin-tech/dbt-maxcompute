@@ -4,6 +4,10 @@ Use `truncate_insert` when every run should replace a non-partitioned table's
 data while retaining the existing table object. This is an opt-in incremental
 strategy; existing strategies and defaults are unchanged.
 
+Existing project or package overrides of `get_incremental_truncate_insert_sql`
+or its dispatched implementation keep their own behavior. The built-in checks
+below apply only when both macros resolve to the adapter's implementation.
+
 ```sql
 {{ config(
     materialized='incremental',
