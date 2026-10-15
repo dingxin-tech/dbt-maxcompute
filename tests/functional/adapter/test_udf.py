@@ -25,6 +25,10 @@ class TestMaxComputePythonFunctions:
 {{ config(materialized='table') }}
 select {{ function('double_value') }}(cast(21 as bigint)) as value
 """,
+            "raw_name_call.sql": """
+{{ config(materialized='table') }}
+select {{ target.schema }}.double_value(cast(21 as bigint)) as value
+""",
             "ephemeral_call.sql": """
 {{ config(materialized='ephemeral') }}
 select {{ function('double_value') }}(cast(21 as bigint)) as value
@@ -251,7 +255,13 @@ cross join digits d4
         assert aggregate.results[0].agate_table.rows[0]["value"] == 5_000_050_000
 
         run_dbt(["run"])
-        for model in ("direct_call", "via_ephemeral", "via_view", "explicit_legacy"):
+        for model in (
+            "direct_call",
+            "raw_name_call",
+            "via_ephemeral",
+            "via_view",
+            "explicit_legacy",
+        ):
             result = project.run_sql(f"select value from {{schema}}.{model}", fetch="one")
             assert result[0] == 42
 
