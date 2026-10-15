@@ -2,11 +2,11 @@
     {#-- Custom strategies could already use this name. Apply the new checks
          only when both dbt override points resolve to our own macros. --#}
     {% set entry = context.get('get_incremental_truncate_insert_sql') %}
-    {% if entry is none or entry.macro is undefined or entry.macro.unique_id != 'macro.maxcompute.get_incremental_truncate_insert_sql' %}
+    {% if entry is none or entry.macro is undefined or entry.macro.unique_id != 'macro.dbt_maxcompute.get_incremental_truncate_insert_sql' %}
         {{ return(false) }}
     {% endif %}
     {% set implementation = adapter.dispatch('get_incremental_truncate_insert_sql', 'dbt') %}
-    {{ return(implementation.macro is defined and implementation.macro.unique_id == 'macro.maxcompute.maxcompute__get_incremental_truncate_insert_sql') }}
+    {{ return(implementation.macro is defined and implementation.macro.unique_id == 'macro.dbt_maxcompute.maxcompute__get_incremental_truncate_insert_sql') }}
 {%- endmacro %}
 
 {% macro mc_validate_truncate_insert_config(partition_by, partitions, predicates, existing_relation, full_refresh_mode) -%}

@@ -9,6 +9,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import yaml
 from dbt.clients.jinja import MacroGenerator
 from dbt.adapters.base.impl import DEFAULT_BASE_BEHAVIOR_FLAGS
 from dbt_common.exceptions import CompilationError, MacroReturn
@@ -19,6 +20,9 @@ from dbt.adapters.maxcompute.impl import MaxComputeAdapter
 from dbt.adapters.maxcompute.relation import MaxComputeRelation
 
 ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_NAME = yaml.safe_load((ROOT / "dbt/include/maxcompute/dbt_project.yml").read_text())[
+    "name"
+]
 INCREMENTAL = ROOT / "dbt/include/maxcompute/macros/materializations/incremental/incremental.sql"
 STRATEGY = INCREMENTAL.parent / "incremental_strategy/truncate_insert.sql"
 LEGACY = [None, "merge", "append", "delete+insert", "insert_overwrite", "microbatch"]
@@ -45,7 +49,7 @@ def _load(path, context, materialization=False):
             name=name,
             macro_sql=source,
             original_file_path=str(path.relative_to(ROOT)),
-            unique_id=f"macro.maxcompute.{name}",
+            unique_id=f"macro.{PACKAGE_NAME}.{name}",
         )
         context[name] = MacroGenerator(node, context)
 
