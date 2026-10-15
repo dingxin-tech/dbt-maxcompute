@@ -19,6 +19,35 @@ class TestMaxComputePythonFunctions:
         return {"functions": {"+runtime_version": "3.11"}}
 
     @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "direct_call.sql": """
+{{ config(materialized='table') }}
+select {{ function('double_value') }}(cast(21 as bigint)) as value
+""",
+            "ephemeral_call.sql": """
+{{ config(materialized='ephemeral') }}
+select {{ function('double_value') }}(cast(21 as bigint)) as value
+""",
+            "via_ephemeral.sql": """
+{{ config(materialized='table') }}
+select * from {{ ref('ephemeral_call') }}
+""",
+            "runtime_view.sql": """
+{{ config(materialized='view') }}
+select {{ function('double_value') }}(cast(21 as bigint)) as value
+""",
+            "via_view.sql": """
+{{ config(materialized='table') }}
+select * from {{ ref('runtime_view') }}
+""",
+            "explicit_legacy.sql": """
+{{ config(materialized='table', sql_hints={'odps.sql.python.version': 'cp37'}) }}
+select {{ function('legacy_mapping') }}(cast(42 as bigint)) as value
+""",
+        }
+
+    @pytest.fixture(scope="class")
     def functions(self):
         return {
             "double_value.py": """
@@ -106,6 +135,23 @@ functions:
     returns:
       data_type: bigint
 """,
+            "legacy_mapping.py": """
+import collections
+
+def main(value):
+    return value if isinstance({}, collections.Mapping) else 0
+""",
+            "legacy_mapping.yml": """
+functions:
+  - name: legacy_mapping
+    config:
+      runtime_version: cp37
+    arguments:
+      - name: value
+        data_type: bigint
+    returns:
+      data_type: bigint
+""",
         }
 
     @staticmethod
@@ -130,7 +176,7 @@ functions:
     def test_scalar_and_aggregate_python_functions(self, project):
         self.create_python_library_resource(project)
         results = run_dbt(["build", "--select", "resource_type:function"])
-        assert len(results) == 4
+        assert len(results) == 5
 
         scalar = run_dbt(
             ["show", "--inline", "select {{ function('double_value') }}(21) as value"]
@@ -202,6 +248,13 @@ cross join digits d4
             ]
         )
         assert aggregate.results[0].agate_table.rows[0]["value"] == 5_000_050_000
+
+        run_dbt(["run"])
+        for model in ("direct_call", "via_ephemeral", "via_view", "explicit_legacy"):
+            result = project.run_sql(f"select value from {{schema}}.{model}", fetch="one")
+            assert result[0] == 42
+        legacy_preview = run_dbt(["show", "--select", "explicit_legacy"])
+        assert legacy_preview.results[0].agate_table.rows[0]["value"] == 42
 
         function_path = Path(project.project_root) / "functions" / "double_value.py"
         function_path.write_text("def main(value):\n    return value * 3\n", encoding="utf-8")

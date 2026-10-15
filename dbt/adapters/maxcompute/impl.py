@@ -58,6 +58,7 @@ from dbt.adapters.maxcompute.utils import (
     quote_ref,
     retry_on_transport_error,
 )
+from dbt.adapters.maxcompute.wrapper import ConnectionWrapper
 
 logger = AdapterLogger("MaxCompute")
 
@@ -131,16 +132,45 @@ class MaxComputeAdapter(SQLAdapter):
         should_release_connection=True,
     ) -> Iterator[None]:
         with super().connection_named(name, query_header_context, should_release_connection):
-            dependencies = getattr(getattr(query_header_context, "depends_on", None), "nodes", ())
-            if any(node.startswith("function.") for node in dependencies):
-                # Only dbt function callers opt into Python 3. Ordinary SQL keeps
-                # the server/runtime hints used before Python functions existed.
-                # Explicit SET/model hints still override this connection default.
-                connection = self.connections.get_thread_connection()
-                with connection.handle.python_runtime("cp311"):
+            config = getattr(query_header_context, "config", {})
+            hints = config.get("sql_hints") if hasattr(config, "get") else None
+            runtime = (hints or {}).get("odps.sql.python.version")
+            if runtime is None and self._uses_python_functions(query_header_context):
+                runtime = "cp311"
+            if runtime is not None:
+                # Keep compilation lazy: the runtime is applied only if a cursor
+                # actually executes SQL. Explicit SET/model runtime hints win.
+                with ConnectionWrapper.python_runtime(str(runtime)):
                     yield
             else:
                 yield
+
+    def _uses_python_functions(self, node: Any) -> bool:
+        nodes = getattr(getattr(self, "_macro_resolver", None), "nodes", {})
+        pending = [node] if node is not None else []
+        visited: Set[int] = set()
+        while pending:
+            current = pending.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+            # Inline `dbt show` nodes record functions before their function
+            # references have been added to depends_on.nodes by dbt Core.
+            if getattr(current, "functions", ()):
+                return True
+            dependencies = getattr(getattr(current, "depends_on", None), "nodes", ())
+            for dependency in dependencies:
+                if dependency.startswith("function."):
+                    return True
+                ancestor = nodes.get(dependency)
+                # These relations execute their SQL in the caller's query. A
+                # persisted table does not execute its producing UDF again.
+                if getattr(getattr(ancestor, "config", None), "materialized", None) in (
+                    "ephemeral",
+                    "view",
+                ):
+                    pending.append(ancestor)
+        return False
 
     def get_odps_client(self) -> ODPS:
         conn = self.acquire_connection()
