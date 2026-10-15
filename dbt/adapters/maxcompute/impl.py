@@ -132,15 +132,13 @@ class MaxComputeAdapter(SQLAdapter):
         should_release_connection=True,
     ) -> Iterator[None]:
         with super().connection_named(name, query_header_context, should_release_connection):
-            config = getattr(query_header_context, "config", {})
-            hints = config.get("sql_hints") if hasattr(config, "get") else None
-            runtime = (hints or {}).get("odps.sql.python.version")
-            if runtime is None and self._uses_python_functions(query_header_context):
-                runtime = "cp311"
-            if runtime is not None:
+            if self._uses_python_functions(query_header_context):
+                config = getattr(query_header_context, "config", {})
+                hints = config.get("sql_hints") if hasattr(config, "get") else None
+                runtime = (hints or {}).get("odps.sql.python.version", "cp311")
                 # Keep compilation lazy: the runtime is applied only if a cursor
                 # actually executes SQL. Explicit SET/model runtime hints win.
-                with ConnectionWrapper.python_runtime(str(runtime)):
+                with ConnectionWrapper.python_runtime(runtime):
                     yield
             else:
                 yield

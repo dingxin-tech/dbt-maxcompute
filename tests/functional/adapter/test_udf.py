@@ -304,7 +304,15 @@ class TestLegacyPythonRuntime:
             "legacy_call.sql": """
 {{ config(materialized='table') }}
 select {{ target.schema }}.legacy_runtime(cast(21 as bigint)) as value
-"""
+""",
+            "explicit_runtime_with_legacy_hook.sql": """
+{{ config(
+    materialized='table',
+    sql_hints={'odps.sql.python.version': 'cp311'},
+    pre_hook='select ' ~ target.schema ~ '.legacy_runtime(cast(21 as bigint))'
+) }}
+select cast(1 as bigint) as value
+""",
         }
 
     def test_sql_without_dbt_functions_preserves_server_python_runtime(self, project):

@@ -138,6 +138,14 @@ def test_model_runtime_hint_also_applies_to_inline_show_queries():
             assert submitted_hints(handle)["odps.sql.python.version"] == "cp37"
 
 
+def test_ordinary_model_runtime_hints_do_not_change_separate_hooks():
+    adapter, handle = make_adapter({})
+    node = SimpleNamespace(config={"sql_hints": {"odps.sql.python.version": "cp311"}})
+    with patch.object(SQLAdapter, "connection_named", acquired_connection):
+        with adapter.connection_named("ordinary_model_with_legacy_hook", node):
+            assert "odps.sql.python.version" not in submitted_hints(handle)
+
+
 @pytest.mark.parametrize("explicit_runtime", [None, "cp27", "cp37"])
 def test_runtime_and_explicit_overrides_reach_maxqa(explicit_runtime):
     client = MagicMock()
